@@ -8,6 +8,10 @@ import pickle
 import plotly.express as px
 import re
 
+import streamlit as st
+import pymongo
+import bson
+
 # --- NETTOYAGE DU CACHE ---
 st.cache_data.clear()
 
@@ -133,21 +137,61 @@ jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
 # --- SYSTÈME D'HISTORIQUE PERSISTANT ---
 HISTORY_FILE = "medical_tracking.pkl"
 
+import pymongo
+import bson
+
+def get_mongo_client():
+    # On récupère l'URL secrète définie dans Streamlit Cloud
+    mongo_uri = st.secrets.get("MONGO_URI")
+    if not mongo_uri:
+        return None
+    return pymongo.MongoClient(mongo_uri)
+
 def load_history():
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "rb") as f:
-                return pickle.load(f)
-        except:
-            return {}
-    return {'plannings': {}, 'medical_list': None, 'rta_data': None}
+    client = get_mongo_client()
+    if client is None:
+        # Mode hors-ligne (si l'URL n'est pas configurée, on garde l'ancien système local)
+        if os.path.exists("medical_tracking.pkl"):
+            try:
+                with open("medical_tracking.pkl", "rb") as f:
+                    return pickle.load(f)
+            except:
+                pass
+        return {'plannings': {}, 'medical_list': None, 'rta_data': None}
+    
+    try:
+        db = client["visite_medicale_db"]
+        collection = db["app_state"]
+        doc = collection.find_one({"_id": 1})
+        if doc:
+            return pickle.loads(doc['data'])
+        return {'plannings': {}, 'medical_list': None, 'rta_data': None}
+    except Exception as e:
+        st.error(f"Erreur de connexion à la base de données : {e}")
+        return {'plannings': {}, 'medical_list': None, 'rta_data': None}
 
 def save_history():
+    client = get_mongo_client()
+    if client is None:
+        # Mode hors-ligne
+        try:
+            with open("medical_tracking.pkl", "wb") as f:
+                pickle.dump(st.session_state.history_data, f)
+        except Exception as e:
+            st.error(f"Erreur lors de la sauvegarde locale : {e}")
+        return
+
     try:
-        with open(HISTORY_FILE, "wb") as f:
-            pickle.dump(st.session_state.history_data, f)
+        db = client["visite_medicale_db"]
+        collection = db["app_state"]
+        pickle_bytes = pickle.dumps(st.session_state.history_data)
+        collection.update_one(
+            {"_id": 1}, 
+            {"$set": {"data": bson.Binary(pickle_bytes)}}, 
+            upsert=True
+        )
     except Exception as e:
-        st.error(f"Erreur lors de la sauvegarde : {e}")
+        st.error(f"Erreur lors de la sauvegarde cloud : {e}")
 
 if 'history_data' not in st.session_state:
     st.session_state.history_data = load_history()
