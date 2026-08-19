@@ -726,6 +726,7 @@ with tab3:
             
             st.markdown("---")
             
+            # Formulaire compact sur une ligne
             with st.form("planning_form"):
                 days_to_plan = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
                 cols = st.columns(5)
@@ -734,7 +735,13 @@ with tab3:
                 for i, day_name in enumerate(days_to_plan):
                     with cols[i]:
                         st.markdown(f"**{day_name}**")
-                        d = st.date_input("Date", monday + datetime.timedelta(days=i), key=f"date_{i}", label_visibility="collapsed")
+                        # Case à cocher pour activer/désactiver le jour
+                        actif = st.checkbox(f"Activer", value=True, key=f"actif_{i}")
+                        
+                        # Date calculée automatiquement et désactivée
+                        d = monday + datetime.timedelta(days=i)
+                        st.date_input("Date", d, key=f"date_{i}", label_visibility="collapsed", disabled=True)
+                        
                         c1, c2 = st.columns(2)
                         with c1: t1 = st.time_input("Début", datetime.time(9, 0), key=f"t1_{i}")
                         with c2: t2 = st.time_input("Fin", datetime.time(16, 0), key=f"t2_{i}")
@@ -742,7 +749,7 @@ with tab3:
                         n2 = st.number_input("Nb Autres", 0, 100, 20, key=f"n2_{i}")
                         prio = st.selectbox("Prioriser", ["Aucune priorité", "Visite systématique", "Visite d'embauche"], key=f"prio_{i}")
                         plan_configs.append({
-                            'day_name': day_name, 'date': d, 'debut': t1, 'fin': t2,
+                            'actif': actif, 'day_name': day_name, 'date': d, 'debut': t1, 'fin': t2,
                             'qty_amazon': n1, 'qty_others': n2, 'prio': prio
                         })
                         
@@ -753,6 +760,10 @@ with tab3:
                 errors = []
                 
                 for config in plan_configs:
+                    # Ignorer ce jour si la case "Activer" est décochée
+                    if not config['actif']:
+                        continue
+                        
                     date_obj = config['date']
                     day_idx = date_obj.weekday()
                     sel_day = jours[day_idx]
@@ -776,10 +787,14 @@ with tab3:
                     
                     working_df = working_df[~working_df['Statut Visite'].isin(['Planifié', 'Visite Faite'])]
                     
+                    # NOUVELLE LOGIQUE DE TRI : Priorité Visite AVANT Ancienneté
                     if config['prio'] != "Aucune priorité" and 'Priorité Visite' in working_df.columns:
-                        working_df['_is_priority'] = working_df['Priorité Visite'].astype(str) == config['prio']
+                        # On crée une colonne True/False : True si la priorité correspond exactement
+                        working_df['_is_priority'] = working_df['Priorité Visite'].astype(str).str.strip().str.lower() == config['prio'].lower()
+                        # Tri : True d'abord (ascending=False sur booléen met True avant), puis Ancienneté décroissante
                         working_df = working_df.sort_values(by=['_is_priority', 'Ancienneté_num'], ascending=[False, False])
                     else:
+                        # Si "Aucune priorité", on trie juste par ancienneté
                         working_df = working_df.sort_values(by=['Ancienneté_num'], ascending=False)
                     
                     is_amazon = working_df['Projet'].astype(str).str.contains('AMAZON', case=False, na=False)
@@ -802,9 +817,9 @@ with tab3:
                 if errors:
                     for err in errors: st.warning(err)
                 if total_planned > 0:
-                    st.success(f"✅ {total_planned} collaborateurs planifiés au total sur les 5 jours !")
+                    st.success(f"✅ {total_planned} collaborateurs planifiés au total sur les jours actifs !")
                 elif not errors:
-                    st.warning("Aucun collaborateur ne correspond aux critères pour cette sélection.")
+                    st.warning("Aucun collaborateur ne correspond aux critères pour les jours actifs.")
 
             st.markdown("---")
             st.subheader(f"📋 Personnes planifiées pour {st.session_state.current_week}")
@@ -893,7 +908,7 @@ with tab3:
                         st.rerun()
             else:
                 st.info("Aucune personne planifiée pour cette semaine pour le moment.")
-
+                
 # --- PAGE 4 : PLANIFICATION GLOBALE ---
 with tab4:
     st.header("📋 Planification Globale")
@@ -1351,6 +1366,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Outil de Suivi Médical - Adapté de LogiPlan par <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px;'>RAVO SERGIO</span></div>", 
+    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px;'>RAVO SERGIO</span></div>", 
     unsafe_allow_html=True
 )
