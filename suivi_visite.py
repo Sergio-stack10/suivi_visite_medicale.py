@@ -186,7 +186,8 @@ with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
         file_rta = st.file_uploader("Fichier Enregistrement visite médicale (RTA)", type=['xlsx'])
     else:
         st.info("🔒 Mode consultation : Vous n'avez pas accès aux imports de fichiers.")
-        files_planning = None
+        # Initialisation à vide pour éviter les erreurs si le code cherche ces variables
+        files_planning = []
         file_a_passer = None
         file_rta = None
 
@@ -199,19 +200,15 @@ import pymongo
 import bson
 
 def get_mongo_client():
-    # On récupère l'URL secrète définie dans Streamlit Cloud
     mongo_uri = st.secrets.get("MONGO_URI")
     if not mongo_uri:
         return None
     
     try:
-        # On tente la connexion avec un délai de 5 secondes
         client = pymongo.MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
-        # On force la connexion réelle pour vérifier
         client.admin.command('ping')
         return client
     except Exception as e:
-        # On remplace l'URL par un texte vide pour que Streamlit ne la masque pas
         safe_error = str(e).replace(mongo_uri, "[URI MASQUÉE]")
         st.error(f"Erreur de connexion à MongoDB : {safe_error}")
         return None
@@ -219,7 +216,6 @@ def get_mongo_client():
 def load_history():
     client = get_mongo_client()
     if client is None:
-        # Mode hors-ligne (si l'URL n'est pas configurée, on garde l'ancien système local)
         if os.path.exists("medical_tracking.pkl"):
             try:
                 with open("medical_tracking.pkl", "rb") as f:
@@ -242,7 +238,6 @@ def load_history():
 def save_history():
     client = get_mongo_client()
     if client is None:
-        # Mode hors-ligne
         try:
             with open("medical_tracking.pkl", "wb") as f:
                 pickle.dump(st.session_state.history_data, f)
@@ -265,7 +260,6 @@ def save_history():
 if 'history_data' not in st.session_state:
     st.session_state.history_data = load_history()
     
-# Mise à jour automatique de l'ancienne mémoire pour ajouter les nouvelles colonnes si manquantes
 if st.session_state.history_data.get('medical_list') is not None:
     med_list = st.session_state.history_data['medical_list']
     for col in ['Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Payroll ID']:
@@ -583,31 +577,16 @@ def parse_rta_file(file):
 
 # --- AFFICHAGE DES ONGLETS ---
 
-# Création d'un faux onglet pour masquer les pages aux non-admins
-@contextlib.contextmanager
-def dummy_tab():
-    yield
-
-if role == "admin":
-    # L'admin voit les 7 onglets
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-        "📄 1. Regroupement Planning", 
-        "👥 2. Liste de collaborateurs", 
-        "📅 3. Planification Automatisée",
-        "📋 4. Planification Globale",
-        "✅ 5. Import RTA & Suivi", 
-        "🚫 6. Absences", 
-        "📊 7. Dashboard & Extractions"
-    ])
-else:
-    # Le visiteur ne voit que les 3 derniers onglets (les 4 premiers sont désactivés)
-    dummy = dummy_tab()
-    tab1, tab2, tab3, tab4 = dummy, dummy, dummy, dummy
-    tab5, tab6, tab7 = st.tabs([
-        "✅ Import RTA & Suivi", 
-        "🚫 Absences", 
-        "📊 Dashboard & Extractions"
-    ])
+# Tout le monde voit les 7 onglets. Ce sont les boutons à l'intérieur qui seront conditionnés
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "📄 1. Regroupement Planning", 
+    "👥 2. Liste de collaborateurs", 
+    "📅 3. Planification Automatisée",
+    "📋 4. Planification Globale",
+    "✅ 5. Import RTA & Suivi", 
+    "🚫 6. Absences", 
+    "📊 7. Dashboard & Extractions"
+])
 
 # --- PAGE 1 : REGROUPEMENT AVEC HISTORIQUE INTÉGRÉ ---
 with tab1:
@@ -621,11 +600,15 @@ with tab1:
             st.session_state.current_week = st.selectbox("Semaine à afficher", available_weeks, key="p1_week_sel")
         with col_w2:
             st.write("") # Alignement vertical
-            if st.button("🗑️ Supprimer cette semaine"):
-                del st.session_state.history_data['plannings'][st.session_state.current_week]
-                save_history()
-                st.session_state.current_week = None
-                st.rerun()
+            # Restriction pour les non-admin
+            if role == "admin":
+                if st.button("🗑️ Supprimer cette semaine"):
+                    del st.session_state.history_data['plannings'][st.session_state.current_week]
+                    save_history()
+                    st.session_state.current_week = None
+                    st.rerun()
+            else:
+                st.write("🔒 Consultation")
     else:
         st.session_state.current_week = None
         st.info("Aucune semaine chargée. Importez un planning ci-dessous.")
@@ -643,21 +626,25 @@ with tab1:
                 
     week_name_input = st.text_input("Nom de la semaine à enregistrer", value=default_week_name, placeholder="Ex: S33, Semaine 34, etc.")
     
-    if st.button("🚀 Lancer l'import et le regroupement", key="btn_p1"):
-        if files_planning:
-            week_num = week_name_input.strip() if week_name_input else default_week_name
-            if not week_num:
-                week_num = f"S{datetime.datetime.now().isocalendar().week:02d}"
-                
-            with st.spinner("Traitement des fichiers en cours..."):
-                planning_df = parse_planning(files_planning, jours)
-                st.session_state.history_data['plannings'][week_num] = planning_df
-                save_history()
-                st.session_state.current_week = week_num
-            st.success(f"Semaine {week_num} chargée et sauvegardée avec succès !")
-            st.rerun()
-        else:
-            st.error("Veuillez importer au moins un fichier de Planning dans le menu de gauche.")
+    # Restriction pour les non-admin
+    if role == "admin":
+        if st.button("🚀 Lancer l'import et le regroupement", key="btn_p1"):
+            if files_planning:
+                week_num = week_name_input.strip() if week_name_input else default_week_name
+                if not week_num:
+                    week_num = f"S{datetime.datetime.now().isocalendar().week:02d}"
+                    
+                with st.spinner("Traitement des fichiers en cours..."):
+                    planning_df = parse_planning(files_planning, jours)
+                    st.session_state.history_data['plannings'][week_num] = planning_df
+                    save_history()
+                    st.session_state.current_week = week_num
+                st.success(f"Semaine {week_num} chargée et sauvegardée avec succès !")
+                st.rerun()
+            else:
+                st.error("Veuillez importer au moins un fichier de Planning dans le menu de gauche.")
+    else:
+        st.info("🔒 Action réservée aux administrateurs.")
             
     current_planning = st.session_state.history_data['plannings'].get(st.session_state.current_week) if st.session_state.current_week else None
     if current_planning is not None:
@@ -695,17 +682,21 @@ with tab1:
 with tab2:
     st.header("Liste des collaborateurs")
     
-    if st.button("📥 Charger le fichier Planification Visite"):
-        if file_a_passer is not None:
-            with st.spinner("Lecture du fichier..."):
-                medical_df = parse_liste_visite(file_a_passer)
-                if medical_df is not None:
-                    st.session_state.history_data['medical_list'] = medical_df
-                    save_history()
-                    st.success(f"{len(medical_df)} collaborateurs chargés avec succès !")
-                    st.rerun()
-        else:
-            st.error("Veuillez importer le fichier PLANIFICATION VISITE SYSTEMATIQUE dans le menu de gauche.")
+    # Restriction pour les non-admin
+    if role == "admin":
+        if st.button("📥 Charger le fichier Planification Visite"):
+            if file_a_passer is not None:
+                with st.spinner("Lecture du fichier..."):
+                    medical_df = parse_liste_visite(file_a_passer)
+                    if medical_df is not None:
+                        st.session_state.history_data['medical_list'] = medical_df
+                        save_history()
+                        st.success(f"{len(medical_df)} collaborateurs chargés avec succès !")
+                        st.rerun()
+            else:
+                st.error("Veuillez importer le fichier PLANIFICATION VISITE SYSTEMATIQUE dans le menu de gauche.")
+    else:
+        st.info("🔒 Action réservée aux administrateurs.")
             
     medical_list = st.session_state.history_data.get('medical_list')
     if medical_list is not None:
@@ -740,14 +731,15 @@ with tab2:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with col_d:
-            with st.expander("⚠️ Zone de danger"):
-                st.warning("Cette action supprimera définitivement la liste et tout l'historique de suivi.")
-                confirm_p2 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p2")
-                if st.button("🗑️ Supprimer ALL", disabled=not confirm_p2, key="btn_del_p2"):
-                    st.session_state.history_data['medical_list'] = None
-                    save_history()
-                    st.success("Liste supprimée avec succès.")
-                    st.rerun()
+            if role == "admin":
+                with st.expander("⚠️ Zone de danger"):
+                    st.warning("Cette action supprimera définitivement la liste et tout l'historique de suivi.")
+                    confirm_p2 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p2")
+                    if st.button("🗑️ Supprimer ALL", disabled=not confirm_p2, key="btn_del_p2"):
+                        st.session_state.history_data['medical_list'] = None
+                        save_history()
+                        st.success("Liste supprimée avec succès.")
+                        st.rerun()
     else:
         st.warning("Aucune liste chargée.")
 
@@ -775,7 +767,6 @@ with tab3:
             
             st.markdown("---")
             
-            # Formulaire compact sur une ligne
             with st.form("planning_form"):
                 days_to_plan = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
                 cols = st.columns(5)
@@ -784,10 +775,8 @@ with tab3:
                 for i, day_name in enumerate(days_to_plan):
                     with cols[i]:
                         st.markdown(f"**{day_name}**")
-                        # Case à cocher pour activer/désactiver le jour
                         actif = st.checkbox(f"Activer", value=True, key=f"actif_{i}")
                         
-                        # Date calculée automatiquement et désactivée
                         d = monday + datetime.timedelta(days=i)
                         st.date_input("Date", d, key=f"date_{i}", label_visibility="collapsed", disabled=True)
                         
@@ -802,14 +791,14 @@ with tab3:
                             'qty_amazon': n1, 'qty_others': n2, 'prio': prio
                         })
                         
-                submitted = st.form_submit_button("🚀 Générer la planification automatique")
+                # Restriction pour les non-admin : on désactive le bouton de soumission du formulaire
+                submitted = st.form_submit_button("🚀 Générer la planification automatique", disabled=(role != "admin"))
                 
             if submitted:
                 total_planned = 0
                 errors = []
                 
                 for config in plan_configs:
-                    # Ignorer ce jour si la case "Activer" est décochée
                     if not config['actif']:
                         continue
                         
@@ -836,14 +825,10 @@ with tab3:
                     
                     working_df = working_df[~working_df['Statut Visite'].isin(['Planifié', 'Visite Faite'])]
                     
-                    # NOUVELLE LOGIQUE DE TRI : Priorité Visite AVANT Ancienneté
                     if config['prio'] != "Aucune priorité" and 'Priorité Visite' in working_df.columns:
-                        # On crée une colonne True/False : True si la priorité correspond exactement
                         working_df['_is_priority'] = working_df['Priorité Visite'].astype(str).str.strip().str.lower() == config['prio'].lower()
-                        # Tri : True d'abord (ascending=False sur booléen met True avant), puis Ancienneté décroissante
                         working_df = working_df.sort_values(by=['_is_priority', 'Ancienneté_num'], ascending=[False, False])
                     else:
-                        # Si "Aucune priorité", on trie juste par ancienneté
                         working_df = working_df.sort_values(by=['Ancienneté_num'], ascending=False)
                     
                     is_amazon = working_df['Projet'].astype(str).str.contains('AMAZON', case=False, na=False)
@@ -869,6 +854,9 @@ with tab3:
                     st.success(f"✅ {total_planned} collaborateurs planifiés au total sur les jours actifs !")
                 elif not errors:
                     st.warning("Aucun collaborateur ne correspond aux critères pour les jours actifs.")
+            
+            if role != "admin":
+                st.info("🔒 Action réservée aux administrateurs.")
 
             st.markdown("---")
             st.subheader(f"📋 Personnes planifiées pour {st.session_state.current_week}")
@@ -928,33 +916,37 @@ with tab3:
                 
                 col_d1, col_d2 = st.columns([1, 3])
                 with col_d1:
-                    if st.button("🗑️ Tout déplanifier (cette semaine)"):
-                        mask = (medical_list['Statut Visite'] == 'Planifié') & \
-                               (pd.to_datetime(medical_list['Date Visite'], errors='coerce') >= pd.Timestamp(start_date)) & \
-                               (pd.to_datetime(medical_list['Date Visite'], errors='coerce') <= pd.Timestamp(end_date))
-                        medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
-                        medical_list.loc[mask, 'Date Visite'] = pd.NaT
-                        medical_list.loc[mask, 'Heure Départ'] = pd.NaT
-                        medical_list.loc[mask, 'Heure Retour'] = pd.NaT
-                        medical_list.loc[mask, 'Commentaire'] = ''
-                        st.session_state.history_data['medical_list'] = medical_list
-                        save_history()
-                        st.success("Toutes les planifications de la semaine ont été supprimées.")
-                        st.rerun()
+                    if role == "admin":
+                        if st.button("🗑️ Tout déplanifier (cette semaine)"):
+                            mask = (medical_list['Statut Visite'] == 'Planifié') & \
+                                   (pd.to_datetime(medical_list['Date Visite'], errors='coerce') >= pd.Timestamp(start_date)) & \
+                                   (pd.to_datetime(medical_list['Date Visite'], errors='coerce') <= pd.Timestamp(end_date))
+                            medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
+                            medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                            medical_list.loc[mask, 'Heure Départ'] = pd.NaT
+                            medical_list.loc[mask, 'Heure Retour'] = pd.NaT
+                            medical_list.loc[mask, 'Commentaire'] = ''
+                            st.session_state.history_data['medical_list'] = medical_list
+                            save_history()
+                            st.success("Toutes les planifications de la semaine ont été supprimées.")
+                            st.rerun()
+                    else:
+                        st.write("🔒 Consultation")
                 
-                with st.expander("❌ Annuler ou modifier la planification (individuelle)"):
-                    ids_to_unplan = st.multiselect("Sélectionner les IDs à déplanifier", planned_this_week['WORKDAY ID'].tolist())
-                    if st.button("Valider la déplanification sélectionnée"):
-                        mask = medical_list['WORKDAY ID'].isin(ids_to_unplan)
-                        medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
-                        medical_list.loc[mask, 'Date Visite'] = pd.NaT
-                        medical_list.loc[mask, 'Heure Départ'] = pd.NaT
-                        medical_list.loc[mask, 'Heure Retour'] = pd.NaT
-                        medical_list.loc[mask, 'Commentaire'] = ''
-                        st.session_state.history_data['medical_list'] = medical_list
-                        save_history()
-                        st.success("Planification mise à jour avec succès !")
-                        st.rerun()
+                if role == "admin":
+                    with st.expander("❌ Annuler ou modifier la planification (individuelle)"):
+                        ids_to_unplan = st.multiselect("Sélectionner les IDs à déplanifier", planned_this_week['WORKDAY ID'].tolist())
+                        if st.button("Valider la déplanification sélectionnée"):
+                            mask = medical_list['WORKDAY ID'].isin(ids_to_unplan)
+                            medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
+                            medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                            medical_list.loc[mask, 'Heure Départ'] = pd.NaT
+                            medical_list.loc[mask, 'Heure Retour'] = pd.NaT
+                            medical_list.loc[mask, 'Commentaire'] = ''
+                            st.session_state.history_data['medical_list'] = medical_list
+                            save_history()
+                            st.success("Planification mise à jour avec succès !")
+                            st.rerun()
             else:
                 st.info("Aucune personne planifiée pour cette semaine pour le moment.")
 
@@ -986,7 +978,6 @@ with tab4:
 with tab5:
     st.header("📥 Import du fichier RTA et Suivi")
     
-    # Seuls les admins peuvent voir et utiliser les boutons d'import et de suppression
     if role == "admin":
         st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
         
@@ -1011,6 +1002,8 @@ with tab5:
                     st.success("Données RTA supprimées.")
                     st.rerun()
         st.markdown("---")
+    else:
+        st.info("🔒 Action réservée aux administrateurs.")
     
     st.subheader("Données de la feuille 'Suivi'")
     
@@ -1115,7 +1108,6 @@ with tab7:
     if rta_data is not None:
         med_df = rta_data.copy()
         
-        # Calcul de la durée si les colonnes existent
         if 'Heure Départ' in med_df.columns and 'Heure Retour' in med_df.columns:
             med_df['Heure Départ'] = pd.to_datetime(med_df['Heure Départ'], errors='coerce')
             med_df['Heure Retour'] = pd.to_datetime(med_df['Heure Retour'], errors='coerce')
@@ -1124,36 +1116,30 @@ with tab7:
         else:
             med_df['Durée (min)'] = np.nan
             
-        # Mapping du projet
         if 'Projet' in med_df.columns:
             med_df['Projet_Affichage'] = med_df['Projet'].apply(get_mapped_project)
         else:
             med_df['Projet_Affichage'] = 'N/A'
             
-        # S'assurer que les colonnes existent pour éviter les erreurs
         for col in ['Statut Visite', 'Commentaire', 'Nom', 'Prénom', 'Date Visite']:
             if col not in med_df.columns:
                 med_df[col] = ''
         
-        # Évaluation dynamique basée sur les règles strictes (Statut et Commentaire)
         med_df['Graph Status'] = med_df.apply(get_final_status, axis=1)
         
         st.markdown("---")
         
-        # Filtre par Projet (Liste déroulante figée en haut)
         available_projects = sorted(med_df['Projet_Affichage'].unique().tolist())
         selected_projects = st.multiselect("Filtrer par Projet", available_projects, default=available_projects, key="p7_projet_filter")
         
-        # Appliquer le filtre sur tout le dashboard
         if selected_projects:
             med_df = med_df[med_df['Projet_Affichage'].isin(selected_projects)]
         else:
-            med_df = med_df.iloc[0:0] # Vide le dataframe si rien n'est sélectionné
+            med_df = med_df.iloc[0:0]
             
         condition_fait = med_df['Graph Status'] == 'Visite effectuée'
         condition_abs = med_df['Graph Status'] == 'Absent/Reporté'
         
-        # Métriques
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         total_a_passer = len(med_df)
         total_fait = len(med_df[condition_fait])
@@ -1167,10 +1153,8 @@ with tab7:
         
         st.markdown("---")
         
-        # Calcul de l'ordre des projets (du plus grand nombre total au plus petit)
         project_order = med_df['Projet_Affichage'].value_counts().index.tolist()
         
-        # Graphique 1 : Total vs Planifié
         st.subheader("1. Total à passer vs Planifié")
         g1_df = med_df.copy()
         
@@ -1219,7 +1203,6 @@ with tab7:
             
         st.markdown("---")
         
-        # Graphique 2 : Planifié vs Visite effectuée vs Absents/Reporté
         st.subheader("2. Planifié vs Visite effectuée vs Absents/Reporté")
         
         g2_data = []
@@ -1232,7 +1215,6 @@ with tab7:
             faite_count = len(proj_df[com_lower.str.contains('ok', na=False)])
             abs_count = len(proj_df[com_lower.str.contains('absent|report', na=False)])
             
-            # On n'ajoute le projet que s'il a au moins 1 personne dans l'un des 3 statuts
             if planifie_count + faite_count + abs_count > 0:
                 g2_data.append({
                     'Projet_Affichage': proj, 
@@ -1244,7 +1226,6 @@ with tab7:
         counts_g2_df = pd.DataFrame(g2_data)
         
         if not counts_g2_df.empty:
-            # Trier du plus grand nombre de Planifié au plus petit
             counts_g2_df = counts_g2_df.sort_values('Planifié', ascending=False)
             g2_order = counts_g2_df['Projet_Affichage'].tolist()
             
@@ -1266,16 +1247,14 @@ with tab7:
             
         st.markdown("---")
         
-        # Inversion des emplacements : Anneau à gauche, Durée Moyenne à droite
         col_p1, col_p2 = st.columns([1, 2])
         with col_p1:
             st.subheader("Avancement Global")
             
-            # --- PARAMÈTRES DE L'ANNEAU (Faciles à modifier) ---
-            ANNEAU_ROTATION = 0        # 90 = Démarre à 12h (Midi). 0 = Démarre à 3h.
-            ANNEAU_DIRECTION = 'clockwise' # 'clockwise' = sens horaire. 'counterclockwise' = sens inverse.
-            ANNEAU_EPAISSEUR = 0.6      # 0.4 = épais, 0.6 = fin, 0.8 = très fin.
-            HACHURE_TAILLE = 8          # Taille du motif (plus c'est grand, plus les traits sont épais).
+            ANNEAU_ROTATION = 0
+            ANNEAU_DIRECTION = 'clockwise'
+            ANNEAU_EPAISSEUR = 0.6
+            HACHURE_TAILLE = 8
             
             if total_a_passer > 0:
                 val_effectuee = total_fait
@@ -1308,11 +1287,8 @@ with tab7:
                 
                 fig_site.update_traces(sort=False, rotation=ANNEAU_ROTATION, direction=ANNEAU_DIRECTION)
                 
-                # Configuration des motifs (Hachures)
                 shapes = ['/' if s == 'Visite effectuée' else '' for s in donut_df['Statut']]
                 
-                # Inversion des couleurs pour la visite effectuée : 
-                # Fond en bleu marine (bgcolor) et Lignes en turquoise (fgcolor)
                 bgcolors = ['#003D5B' if s == 'Visite effectuée' else ('#003D5B' if s == 'Reste Planifié' else '#747474') for s in donut_df['Statut']]
                 fcolors = ['#25E2CC' if s == 'Visite effectuée' else '#FFFFFF' for s in donut_df['Statut']]
                 
@@ -1321,8 +1297,8 @@ with tab7:
                         pattern=dict(
                             shape=shapes, 
                             fillmode='overlay', 
-                            fgcolor=fcolors, # Couleur des lignes (Turquoise)
-                            bgcolor=bgcolors, # Couleur de fond (Bleu marine)
+                            fgcolor=fcolors,
+                            bgcolor=bgcolors, 
                             size=HACHURE_TAILLE
                         )
                     )
@@ -1340,7 +1316,6 @@ with tab7:
                     else:
                         custom_text.append("")
                 
-                # Pour forcer l'affichage des lignes de connexion, on "tire" légèrement les tranches
                 pull_values = [0.05 if s in ['Visite effectuée', 'Reste Planifié'] else 0 for s in donut_df['Statut']]
                 
                 fig_site.update_traces(
@@ -1348,7 +1323,7 @@ with tab7:
                     textinfo='text', 
                     textposition='outside',
                     outsidetextfont_size=12,
-                    pull=pull_values, # <-- Ajoute les lignes de connexion
+                    pull=pull_values,
                     insidetextorientation='radial'
                 )
                 fig_site.update_layout(showlegend=False, margin=dict(t=40, b=20, l=20, r=20))
@@ -1369,7 +1344,6 @@ with tab7:
         
         st.markdown("---")
         
-        # Top 5 maintenant en bas sur toute la largeur
         st.subheader("Top 5 des durées les plus élevées")
         top5_df = med_df.dropna(subset=['Durée (min)']).nlargest(5, 'Durée (min)')[['WORKDAY ID', 'Nom', 'Prénom', 'Projet_Affichage', 'Heure Départ', 'Heure Retour', 'Durée (min)']].copy()
         if not top5_df.empty:
