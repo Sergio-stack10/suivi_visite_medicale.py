@@ -215,7 +215,6 @@ custom_css = """
         background-color: transparent !important; /* Rend le fond transparent */
         padding: 10px 0 !important;
     }
-    
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -818,12 +817,12 @@ with tab3:
                         c1, c2 = st.columns(2)
                         with c1: t1 = st.time_input("Début", datetime.time(9, 0), key=f"t1_{i}")
                         with c2: t2 = st.time_input("Fin", datetime.time(16, 0), key=f"t2_{i}")
-                        n1 = st.number_input("Nb River", 0, 100, 5, key=f"n1_{i}") # <-- Changé ici
+                        n1 = st.number_input("Nb Amazon", 0, 100, 5, key=f"n1_{i}")
                         n2 = st.number_input("Nb Autres", 0, 100, 20, key=f"n2_{i}")
                         prio = st.selectbox("Prioriser", ["Aucune priorité", "Visite systématique", "Visite d'embauche"], key=f"prio_{i}")
                         plan_configs.append({
                             'actif': actif, 'day_name': day_name, 'date': d, 'debut': t1, 'fin': t2,
-                            'qty_river': n1, 'qty_others': n2, 'prio': prio # <-- Changé ici
+                            'qty_amazon': n1, 'qty_others': n2, 'prio': prio
                         })
                         
                 submitted = st.form_submit_button("🚀 Générer la planification automatique", disabled=(role != "admin"))
@@ -1426,6 +1425,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px;'>RAVO SERGIO</span></div>", 
+    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>", 
     unsafe_allow_html=True
 )
