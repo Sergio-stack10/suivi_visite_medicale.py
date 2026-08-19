@@ -110,7 +110,7 @@ with st.sidebar:
 # --- NETTOYAGE DU CACHE ---
 st.cache_data.clear()
 
-st.set_page_config(page_title="Suivi Visites Médicales", layout="wide")
+st.set_page_config(page_title="Suivi Visites Médicales", page_icon="kit-medical.png", layout="wide")
 
 # --- DICTIONNAIRE DE MAPPAGE DES PROJETS ---
 def get_mapped_project(projet):
@@ -215,6 +215,10 @@ custom_css = """
         background-color: transparent !important; /* Rend le fond transparent */
         padding: 10px 0 !important;
     }
+        /* Masquer le menu Streamlit et le footer */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header[data-testid="stHeader"] {display: none;}
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -817,12 +821,12 @@ with tab3:
                         c1, c2 = st.columns(2)
                         with c1: t1 = st.time_input("Début", datetime.time(9, 0), key=f"t1_{i}")
                         with c2: t2 = st.time_input("Fin", datetime.time(16, 0), key=f"t2_{i}")
-                        n1 = st.number_input("Nb Amazon", 0, 100, 5, key=f"n1_{i}")
+                        n1 = st.number_input("Nb River", 0, 100, 5, key=f"n1_{i}") # <-- Changé ici
                         n2 = st.number_input("Nb Autres", 0, 100, 20, key=f"n2_{i}")
                         prio = st.selectbox("Prioriser", ["Aucune priorité", "Visite systématique", "Visite d'embauche"], key=f"prio_{i}")
                         plan_configs.append({
                             'actif': actif, 'day_name': day_name, 'date': d, 'debut': t1, 'fin': t2,
-                            'qty_amazon': n1, 'qty_others': n2, 'prio': prio
+                            'qty_river': n1, 'qty_others': n2, 'prio': prio # <-- Changé ici
                         })
                         
                 submitted = st.form_submit_button("🚀 Générer la planification automatique", disabled=(role != "admin"))
