@@ -22,8 +22,8 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.text_input("Nom d'utilisateur", key="username")
-        st.text_input("Mot de passe", type="password", key="password")
+        st.text_input("concentrix", key="username")
+        st.text_input("Visite2026", type="password", key="password")
         st.button("Se connecter", on_click=password_entered)
         return False
     elif not st.session_state["password_correct"]:
@@ -171,7 +171,18 @@ def get_mongo_client():
     mongo_uri = st.secrets.get("MONGO_URI")
     if not mongo_uri:
         return None
-    return pymongo.MongoClient(mongo_uri)
+    
+    try:
+        # On tente la connexion avec un délai de 5 secondes
+        client = pymongo.MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        # On force la connexion réelle pour vérifier
+        client.admin.command('ping')
+        return client
+    except Exception as e:
+        # On remplace l'URL par un texte vide pour que Streamlit ne la masque pas
+        safe_error = str(e).replace(mongo_uri, "[URI MASQUÉE]")
+        st.error(f"Erreur de connexion à MongoDB : {safe_error}")
+        return None
 
 def load_history():
     client = get_mongo_client()
