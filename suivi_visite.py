@@ -616,18 +616,18 @@ def parse_rta_file(file):
 
 # --- AFFICHAGE DES ONGLETS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📄 1. Regroupement Planning", 
+    "📄 1. Planning MC & River", 
     "👥 2. Liste de collaborateurs", 
-    "📅 3. Planification Automatisée",
-    "📋 4. Planification Globale",
-    "✅ 5. Import RTA & Suivi", 
+    "📅 3. Géneration planning visite",
+    "📋 4. Planning visite",
+    "✅ 5. Import fichier Suivi", 
     "🚫 6. Absences", 
     "📊 7. Dashboard & Extractions"
 ])
 
 # --- PAGE 1 : REGROUPEMENT AVEC HISTORIQUE INTÉGRÉ ---
 with tab1:
-    st.header("Regroupement des plannings")
+    st.header("Planning MC & River")
     
     available_weeks = list(st.session_state.history_data['plannings'].keys())
     if available_weeks:
@@ -817,7 +817,7 @@ with tab3:
                         c1, c2 = st.columns(2)
                         with c1: t1 = st.time_input("Début", datetime.time(9, 0), key=f"t1_{i}")
                         with c2: t2 = st.time_input("Fin", datetime.time(16, 0), key=f"t2_{i}")
-                        n1 = st.number_input("Nb Amazon", 0, 100, 5, key=f"n1_{i}")
+                        n1 = st.number_input("Nb River", 0, 100, 5, key=f"n1_{i}")
                         n2 = st.number_input("Nb Autres", 0, 100, 20, key=f"n2_{i}")
                         prio = st.selectbox("Prioriser", ["Aucune priorité", "Visite systématique", "Visite d'embauche"], key=f"prio_{i}")
                         plan_configs.append({
@@ -985,7 +985,7 @@ with tab3:
 
 # --- PAGE 4 : PLANIFICATION GLOBALE ---
 with tab4:
-    st.header("📋 Planification Globale")
+    st.header("📋 Planning visite")
     medical_list = st.session_state.history_data.get('medical_list')
     
     if medical_list is not None:
@@ -1009,7 +1009,7 @@ with tab4:
 
 # --- PAGE 5 : IMPORT RTA & SUIVI ---
 with tab5:
-    st.header("📥 Import du fichier RTA et Suivi")
+    st.header("📥 Import du fichier Suivi")
     
     if role == "admin":
         st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
