@@ -14,6 +14,8 @@ import streamlit as st
 import pymongo
 import bson
 
+st.set_page_config(page_title="Suivi Visites Médicales", page_icon="kit-medical.png", layout="wide")
+
 # --- SYSTÈME D'AUTHENTIFICATION ROBUSTE ---
 @st.cache_resource
 def get_token_store():
@@ -109,8 +111,6 @@ with st.sidebar:
 
 # --- NETTOYAGE DU CACHE ---
 st.cache_data.clear()
-
-st.set_page_config(page_title="Suivi Visites Médicales", page_icon="kit-medical.png", layout="wide")
 
 # --- DICTIONNAIRE DE MAPPAGE DES PROJETS ---
 def get_mapped_project(projet):
@@ -215,10 +215,10 @@ custom_css = """
         background-color: transparent !important; /* Rend le fond transparent */
         padding: 10px 0 !important;
     }
-        /* Masquer le menu Streamlit et le footer */
+    /* Masquer le menu Streamlit et le footer sans cacher la sidebar */
     #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header[data-testid="stHeader"] {display: none;}
+    footer {visibility: hidden !important;}
+    [data-testid="stToolbar"] {display: none !important;}
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -1429,6 +1429,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px;'>RAVO SERGIO</span></div>", 
+    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>",  
     unsafe_allow_html=True
 )
