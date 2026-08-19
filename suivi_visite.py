@@ -53,6 +53,17 @@ if not check_password():
 # Récupération du rôle pour conditionner l'affichage
 role = st.session_state.get("role", "consultation")
 
+# --- BOUTON DE DÉCONNEXION ---
+with st.sidebar:
+    st.markdown(f"👤 **Utilisateur :** {st.session_state.get('username', 'N/A')}")
+    st.markdown(f"🔑 **Rôle :** {role.capitalize()}")
+    if st.button("🚪 Se déconnecter"):
+        # Nettoyage complet de la session pour revenir à l'écran de login
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
+    st.markdown("---")
+
 # --- NETTOYAGE DU CACHE ---
 st.cache_data.clear()
 
@@ -1261,7 +1272,7 @@ with tab7:
             st.subheader("Avancement Global")
             
             # --- PARAMÈTRES DE L'ANNEAU (Faciles à modifier) ---
-            ANNEAU_ROTATION = 0        # 0 = Démarre à 12h (Midi)
+            ANNEAU_ROTATION = 0        # 90 = Démarre à 12h (Midi). 0 = Démarre à 3h.
             ANNEAU_DIRECTION = 'clockwise' # 'clockwise' = sens horaire. 'counterclockwise' = sens inverse.
             ANNEAU_EPAISSEUR = 0.6      # 0.4 = épais, 0.6 = fin, 0.8 = très fin.
             HACHURE_TAILLE = 8          # Taille du motif (plus c'est grand, plus les traits sont épais).
