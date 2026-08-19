@@ -1180,6 +1180,7 @@ with tab7:
                 color_discrete_sequence=['#747474']
             )
             fig1.data[0].name = 'Total'
+            fig1.data[0].showlegend = True # <-- CORRECTION APPLIQUÉE ICI
             fig1.data[0].text = counts_df['Total']
             fig1.data[0].textposition = 'outside'
             
@@ -1391,6 +1392,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'>TEAM TMM 🦄 </span></div>", 
+    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>", 
     unsafe_allow_html=True
 )
