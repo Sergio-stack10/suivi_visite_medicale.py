@@ -8,13 +8,41 @@ import pickle
 import plotly.express as px
 import re
 import contextlib
+import uuid
 
 import streamlit as st
 import pymongo
 import bson
 
-# --- SYSTÈME D'AUTHENTIFICATION ---
+# --- SYSTÈME D'AUTHENTIFICATION ROBUSTE ---
+@st.cache_resource
+def get_token_store():
+    # Dictionnaire en mémoire partagée sur le serveur pour stocker les sessions actives
+    return {}
+
 def check_password():
+    token_store = get_token_store()
+
+    # 1. Vérifier si déjà connecté via session_state
+    if st.session_state.get("password_correct"):
+        return True
+
+    # 2. Vérifier si on a un token dans l'URL (après un refresh F5)
+    params = st.query_params
+    if "token" in params:
+        token = params["token"]
+        if token in token_store:
+            user_data = token_store[token]
+            st.session_state["password_correct"] = True
+            st.session_state["role"] = user_data["role"]
+            st.session_state["username"] = user_data["username"]
+            st.session_state["token"] = token
+            return True
+        else:
+            # Token invalide ou expiré, on le retire de l'URL
+            st.query_params.clear()
+
+    # 3. Afficher le formulaire de connexion
     def password_entered():
         user = st.session_state["username"]
         pwd = st.session_state["password"]
@@ -25,27 +53,34 @@ def check_password():
         if user in admin_users and pwd == admin_users[user]:
             st.session_state["password_correct"] = True
             st.session_state["role"] = "admin"
-            del st.session_state["password"]
+            if "password" in st.session_state: del st.session_state["password"]
+            
+            # Création du token de session
+            token = str(uuid.uuid4())
+            token_store[token] = {"username": user, "role": "admin"}
+            st.session_state["token"] = token
+            st.query_params["token"] = token
+            
         elif user in consult_users and pwd == consult_users[user]:
             st.session_state["password_correct"] = True
             st.session_state["role"] = "consultation"
-            del st.session_state["password"]
+            if "password" in st.session_state: del st.session_state["password"]
+            
+            # Création du token de session
+            token = str(uuid.uuid4())
+            token_store[token] = {"username": user, "role": "consultation"}
+            st.session_state["token"] = token
+            st.query_params["token"] = token
         else:
             st.session_state["password_correct"] = False
 
-    if "password_correct" not in st.session_state:
-        st.text_input("Nom d'utilisateur", key="username")
-        st.text_input("Mot de passe", type="password", key="password")
-        st.button("Se connecter", on_click=password_entered)
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input("Nom d'utilisateur", key="username")
-        st.text_input("Mot de passe", type="password", key="password")
-        st.button("Se connecter", on_click=password_entered)
+    st.text_input("Nom d'utilisateur", key="username")
+    st.text_input("Mot de passe", type="password", key="password")
+    st.button("Se connecter", on_click=password_entered)
+    
+    if "password_correct" in st.session_state and not st.session_state["password_correct"]:
         st.error("😕 Utilisateur ou mot de passe inconnu")
-        return False
-    else:
-        return True
+    return False
 
 if not check_password():
     st.stop()
@@ -58,9 +93,17 @@ with st.sidebar:
     st.markdown(f"👤 **Utilisateur :** {st.session_state.get('username', 'N/A')}")
     st.markdown(f"🔑 **Rôle :** {role.capitalize()}")
     if st.button("🚪 Se déconnecter"):
-        # Nettoyage complet de la session pour revenir à l'écran de login
+        token_store = get_token_store()
+        token = st.session_state.get("token")
+        if token and token in token_store:
+            del token_store[token] # Supprime la session du serveur
+        
+        # Nettoyage complet de la session locale
         for key in list(st.session_state.keys()):
             del st.session_state[key]
+        
+        # Nettoyage de l'URL
+        st.query_params.clear()
         st.rerun()
     st.markdown("---")
 
@@ -186,7 +229,6 @@ with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
         file_rta = st.file_uploader("Fichier Enregistrement visite médicale (RTA)", type=['xlsx'])
     else:
         st.info("🔒 Mode consultation : Vous n'avez pas accès aux imports de fichiers.")
-        # Initialisation à vide pour éviter les erreurs si le code cherche ces variables
         files_planning = []
         file_a_passer = None
         file_rta = None
@@ -195,9 +237,6 @@ jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
 
 # --- SYSTÈME D'HISTORIQUE PERSISTANT ---
 HISTORY_FILE = "medical_tracking.pkl"
-
-import pymongo
-import bson
 
 def get_mongo_client():
     mongo_uri = st.secrets.get("MONGO_URI")
@@ -576,8 +615,6 @@ def parse_rta_file(file):
         return None
 
 # --- AFFICHAGE DES ONGLETS ---
-
-# Tout le monde voit les 7 onglets. Ce sont les boutons à l'intérieur qui seront conditionnés
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📄 1. Regroupement Planning", 
     "👥 2. Liste de collaborateurs", 
@@ -599,8 +636,7 @@ with tab1:
         with col_w1:
             st.session_state.current_week = st.selectbox("Semaine à afficher", available_weeks, key="p1_week_sel")
         with col_w2:
-            st.write("") # Alignement vertical
-            # Restriction pour les non-admin
+            st.write("") 
             if role == "admin":
                 if st.button("🗑️ Supprimer cette semaine"):
                     del st.session_state.history_data['plannings'][st.session_state.current_week]
@@ -626,7 +662,6 @@ with tab1:
                 
     week_name_input = st.text_input("Nom de la semaine à enregistrer", value=default_week_name, placeholder="Ex: S33, Semaine 34, etc.")
     
-    # Restriction pour les non-admin
     if role == "admin":
         if st.button("🚀 Lancer l'import et le regroupement", key="btn_p1"):
             if files_planning:
@@ -682,7 +717,6 @@ with tab1:
 with tab2:
     st.header("Liste des collaborateurs")
     
-    # Restriction pour les non-admin
     if role == "admin":
         if st.button("📥 Charger le fichier Planification Visite"):
             if file_a_passer is not None:
@@ -791,7 +825,6 @@ with tab3:
                             'qty_amazon': n1, 'qty_others': n2, 'prio': prio
                         })
                         
-                # Restriction pour les non-admin : on désactive le bouton de soumission du formulaire
                 submitted = st.form_submit_button("🚀 Générer la planification automatique", disabled=(role != "admin"))
                 
             if submitted:
@@ -1180,7 +1213,7 @@ with tab7:
                 color_discrete_sequence=['#747474']
             )
             fig1.data[0].name = 'Total'
-            fig1.data[0].showlegend = True # <-- CORRECTION APPLIQUÉE ICI
+            fig1.data[0].showlegend = True # <-- CORRECTION APPLIQUÉE ICI POUR AFFICHER LA LÉGENDE
             fig1.data[0].text = counts_df['Total']
             fig1.data[0].textposition = 'outside'
             
@@ -1392,6 +1425,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>", 
+    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px;'>RAVO SERGIO</span></div>", 
     unsafe_allow_html=True
 )
