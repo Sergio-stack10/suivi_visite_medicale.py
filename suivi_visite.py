@@ -6,10 +6,8 @@ import io
 import os
 import pickle
 import plotly.express as px
+import plotly.graph_objects as go
 import re
-import contextlib
-
-import streamlit as st
 import pymongo
 import bson
 
@@ -155,7 +153,7 @@ custom_css = """
         position: sticky !important;
         top: 0 !important;
         z-index: 999 !important;
-        background-color: transparent !important; /* Rend le fond transparent */
+        background-color: transparent !important;
         padding: 10px 0 !important;
     }
 </style>
@@ -172,26 +170,15 @@ with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
 
 jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
-# --- SYSTÈME D'HISTORIQUE PERSISTANT ---
-HISTORY_FILE = "medical_tracking.pkl"
-
-import pymongo
-import bson
-
+# --- SYSTÈME DE BASE DE DONNÉES MONGODB ---
 def get_mongo_client():
-    # On récupère l'URL secrète définie dans Streamlit Cloud
     mongo_uri = st.secrets.get("MONGO_URI")
-    if not mongo_uri:
-        return None
-    
+    if not mongo_uri: return None
     try:
-        # On tente la connexion avec un délai de 5 secondes
         client = pymongo.MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
-        # On force la connexion réelle pour vérifier
         client.admin.command('ping')
         return client
     except Exception as e:
-        # On remplace l'URL par un texte vide pour que Streamlit ne la masque pas
         safe_error = str(e).replace(mongo_uri, "[URI MASQUÉE]")
         st.error(f"Erreur de connexion à MongoDB : {safe_error}")
         return None
@@ -199,63 +186,46 @@ def get_mongo_client():
 def load_history():
     client = get_mongo_client()
     if client is None:
-        # Mode hors-ligne (si l'URL n'est pas configurée, on garde l'ancien système local)
         if os.path.exists("medical_tracking.pkl"):
             try:
-                with open("medical_tracking.pkl", "rb") as f:
-                    return pickle.load(f)
-            except:
-                pass
+                with open("medical_tracking.pkl", "rb") as f: return pickle.load(f)
+            except: pass
         return {'plannings': {}, 'medical_list': None, 'rta_data': None}
-    
     try:
         db = client["visite_medicale_db"]
         collection = db["app_state"]
         doc = collection.find_one({"_id": 1})
-        if doc:
-            return pickle.loads(doc['data'])
+        if doc: return pickle.loads(doc['data'])
         return {'plannings': {}, 'medical_list': None, 'rta_data': None}
     except Exception as e:
-        st.error(f"Erreur de connexion à la base de données : {e}")
+        st.error(f"Erreur de lecture cloud : {e}")
         return {'plannings': {}, 'medical_list': None, 'rta_data': None}
 
 def save_history():
     client = get_mongo_client()
     if client is None:
-        # Mode hors-ligne
         try:
-            with open("medical_tracking.pkl", "wb") as f:
-                pickle.dump(st.session_state.history_data, f)
-        except Exception as e:
-            st.error(f"Erreur lors de la sauvegarde locale : {e}")
+            with open("medical_tracking.pkl", "wb") as f: pickle.dump(st.session_state.history_data, f)
+        except Exception as e: st.error(f"Erreur sauvegarde locale : {e}")
         return
-
     try:
         db = client["visite_medicale_db"]
         collection = db["app_state"]
         pickle_bytes = pickle.dumps(st.session_state.history_data)
-        collection.update_one(
-            {"_id": 1}, 
-            {"$set": {"data": bson.Binary(pickle_bytes)}}, 
-            upsert=True
-        )
+        collection.update_one({"_id": 1}, {"$set": {"data": bson.Binary(pickle_bytes)}}, upsert=True)
     except Exception as e:
-        st.error(f"Erreur lors de la sauvegarde cloud : {e}")
+        st.error(f"Erreur sauvegarde cloud : {e}")
 
 if 'history_data' not in st.session_state:
     st.session_state.history_data = load_history()
     
-# Mise à jour automatique de l'ancienne mémoire pour ajouter les nouvelles colonnes si manquantes
 if st.session_state.history_data.get('medical_list') is not None:
     med_list = st.session_state.history_data['medical_list']
     for col in ['Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Payroll ID']:
         if col not in med_list.columns:
-            if col == 'Ancienneté_num':
-                med_list[col] = 0
-            elif col == 'Date d\'embauche':
-                med_list[col] = pd.NaT
-            else:
-                med_list[col] = ''
+            if col == 'Ancienneté_num': med_list[col] = 0
+            elif col == 'Date d\'embauche': med_list[col] = pd.NaT
+            else: med_list[col] = ''
     st.session_state.history_data['medical_list'] = med_list
     
 if 'current_week' not in st.session_state:
@@ -269,8 +239,7 @@ def get_dates_from_week(week_name):
             year = datetime.date.today().year
             monday = datetime.date.fromisocalendar(year, week_num, 1)
             return {j: (monday + datetime.timedelta(days=i)) for i, j in enumerate(jours)}
-    except:
-        pass
+    except: pass
     return {j: datetime.date.today() for j in jours}
 
 # --- FONCTIONS UTILITAIRES ---
@@ -342,8 +311,7 @@ def calculate_anciennete(hire_date_str):
         years = months // 12
         rem_months = months % 12
         return f"{years} an(s) {rem_months} mois" if years > 0 else f"{rem_months} mois"
-    except:
-        return ''
+    except: return ''
 
 def calculate_anciennete_num(hire_date_str):
     try:
@@ -352,18 +320,14 @@ def calculate_anciennete_num(hire_date_str):
         today = datetime.date.today()
         months = (today.year - hd.year) * 12 + (today.month - hd.month)
         return max(0, months)
-    except:
-        return 0
+    except: return 0
 
 def get_final_status(row):
     statut = str(row.get('Statut Visite', '')).lower().strip()
     com = str(row.get('Commentaire', '')).lower()
-    if 'ok' in com:
-        return 'Visite effectuée'
-    if 'absent' in com or 'report' in com:
-        return 'Absent/Reporté'
-    if statut in ['planifié', 'planifie']:
-        return 'Planifié'
+    if 'ok' in com: return 'Visite effectuée'
+    if 'absent' in com or 'report' in com: return 'Absent/Reporté'
+    if statut in ['planifié', 'planifie']: return 'Planifié'
     return 'Non Planifié'
 
 # --- FONCTIONS DE TRAITEMENT ---
@@ -377,12 +341,9 @@ def get_week_number(file, engine):
                     val = df_head.iloc[i, j]
                     if pd.notna(val):
                         dt = pd.to_datetime(val, errors='coerce')
-                        if pd.isna(dt):
-                            dt = pd.to_datetime(str(val), errors='coerce')
-                        if not pd.isna(dt):
-                            return f"S{dt.isocalendar().week:02d}"
-    except:
-        pass
+                        if pd.isna(dt): dt = pd.to_datetime(str(val), errors='coerce')
+                        if not pd.isna(dt): return f"S{dt.isocalendar().week:02d}"
+    except: pass
     return None
 
 def parse_planning(files, jours):
@@ -423,10 +384,8 @@ def parse_planning(files, jours):
                             'Dimanche_DE', 'Dimanche_A', 'Dimanche_Pause']
                 df = df.iloc[:, cols]
                 df.columns = new_cols
-            else:
-                continue
-        else: 
-            continue
+            else: continue
+        else: continue
             
         df['WORKDAY ID'] = df['WORKDAY ID'].astype(str).str.replace(" ", "").str.replace(".0", "").str.upper()
         df['Paid ID'] = df['Paid ID'].astype(str).str.replace(" ", "").str.upper()
@@ -468,25 +427,16 @@ def parse_liste_visite(file):
         if hire_col: cols_to_keep.append(hire_col)
         
         df = df[cols_to_keep].copy()
-        
         if projet_col: df['Projet'] = df[projet_col]
         else: df['Projet'] = 'N/A'
-            
         if visite_col: df['Priorité Visite'] = df[visite_col]
         else: df['Priorité Visite'] = 'N/A'
-            
         if prenom_col: df = df.rename(columns={prenom_col: 'Prénom'})
         else: df['Prénom'] = ''
-            
-        if hire_col:
-            df = df.rename(columns={hire_col: 'Date d\'embauche'})
-        else:
-            df['Date d\'embauche'] = pd.NaT
-            
-        if paid_col:
-            df = df.rename(columns={paid_col: 'Payroll ID'})
-        else:
-            df['Payroll ID'] = ''
+        if hire_col: df = df.rename(columns={hire_col: 'Date d\'embauche'})
+        else: df['Date d\'embauche'] = pd.NaT
+        if paid_col: df = df.rename(columns={paid_col: 'Payroll ID'})
+        else: df['Payroll ID'] = ''
             
         df[id_col] = df[id_col].astype(str).str.replace(" ", "").str.replace(".0", "").str.upper()
         df = df.rename(columns={id_col: 'WORKDAY ID'})
@@ -522,39 +472,25 @@ def parse_rta_file(file):
             
         df = pd.read_excel(file, sheet_name=sheet_name)
         df = df.loc[:, ~df.columns.duplicated()]
-        
         cols_cleaned = [str(c).strip().upper().replace('É', 'E').replace('È', 'E').replace('Ê', 'E').replace('À', 'A') for c in df.columns]
         df.columns = cols_cleaned
         
         rename_map = {
-            'WORKDAY ID': 'WORKDAY ID',
-            'NOM': 'Nom',
-            'PRENOM': 'Prénom',
-            'STATUT VISITE': 'Statut Visite',
-            'DATE VISITE': 'Date Visite',
-            'HEURE DEPART': 'Heure Départ',
-            'HEURE RETOUR': 'Heure Retour',
-            'COMMENTAIRES': 'Commentaire',
-            'DUREE': 'Durée',
-            'PROJET': 'Projet'
+            'WORKDAY ID': 'WORKDAY ID', 'NOM': 'Nom', 'PRENOM': 'Prénom',
+            'STATUT VISITE': 'Statut Visite', 'DATE VISITE': 'Date Visite',
+            'HEURE DEPART': 'Heure Départ', 'HEURE RETOUR': 'Heure Retour',
+            'COMMENTAIRES': 'Commentaire', 'DUREE': 'Durée', 'PROJET': 'Projet'
         }
-        
         current_renames = {k: v for k, v in rename_map.items() if k in df.columns}
         df = df.rename(columns=current_renames)
         df = df.loc[:, ~df.columns.duplicated()]
         df = df.replace(['*', '-', 'nan', 'None', ''], np.nan)
         
-        if 'Date Visite' in df.columns:
-            df['Date Visite'] = pd.to_datetime(df['Date Visite'], errors='coerce', dayfirst=True)
-        if 'Heure Départ' in df.columns:
-            df['Heure Départ'] = pd.to_datetime(df['Heure Départ'], errors='coerce')
-        if 'Heure Retour' in df.columns:
-            df['Heure Retour'] = pd.to_datetime(df['Heure Retour'], errors='coerce')
-        if "DATE D'EMBAUCHE" in df.columns:
-            df["DATE D'EMBAUCHE"] = pd.to_datetime(df["DATE D'EMBAUCHE"], errors='coerce', dayfirst=True)
-                
-        if 'WORKDAY ID' in df.columns:
-            df['WORKDAY ID'] = df['WORKDAY ID'].astype(str).str.replace(" ", "").str.replace(".0", "").str.upper()
+        if 'Date Visite' in df.columns: df['Date Visite'] = pd.to_datetime(df['Date Visite'], errors='coerce', dayfirst=True)
+        if 'Heure Départ' in df.columns: df['Heure Départ'] = pd.to_datetime(df['Heure Départ'], errors='coerce')
+        if 'Heure Retour' in df.columns: df['Heure Retour'] = pd.to_datetime(df['Heure Retour'], errors='coerce')
+        if "DATE D'EMBAUCHE" in df.columns: df["DATE D'EMBAUCHE"] = pd.to_datetime(df["DATE D'EMBAUCHE"], errors='coerce', dayfirst=True)
+        if 'WORKDAY ID' in df.columns: df['WORKDAY ID'] = df['WORKDAY ID'].astype(str).str.replace(" ", "").str.replace(".0", "").str.upper()
             
         return df
     except Exception as e:
@@ -562,34 +498,17 @@ def parse_rta_file(file):
         return None
 
 # --- AFFICHAGE DES ONGLETS ---
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "📄 1. Regroupement Planning", 
+    "👥 2. Liste de collaborateurs", 
+    "📅 3. Planification Automatisée",
+    "📋 4. Planification Globale",
+    "✅ 5. Import RTA & Suivi", 
+    "🚫 6. Absences", 
+    "📊 7. Dashboard & Extractions"
+])
 
-# Création d'un faux onglet pour masquer les pages aux non-admins
-@contextlib.contextmanager
-def dummy_tab():
-    yield
-
-role = st.session_state.get("role", "consultation")
-
-if role == "admin":
-    # L'admin voit les 7 onglets
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-        "📄 1. Regroupement Planning", 
-        "👥 2. Liste de collaborateurs", 
-        "📅 3. Planification Automatisée",
-        "📋 4. Planification Globale",
-        "✅ 5. Import RTA & Suivi", 
-        "🚫 6. Absences", 
-        "📊 7. Dashboard & Extractions"
-    ])
-else:
-    # Le visiteur ne voit que les 3 derniers onglets (les 4 premiers sont désactivés)
-    dummy = dummy_tab()
-    tab1, tab2, tab3, tab4 = dummy, dummy, dummy, dummy
-    tab5, tab6, tab7 = st.tabs([
-        "✅ Import RTA & Suivi", 
-        "🚫 Absences", 
-        "📊 Dashboard & Extractions"
-    ])
+is_admin = st.session_state.get("role") == "admin"
 
 # --- PAGE 1 : REGROUPEMENT AVEC HISTORIQUE INTÉGRÉ ---
 with tab1:
@@ -602,8 +521,8 @@ with tab1:
         with col_w1:
             st.session_state.current_week = st.selectbox("Semaine à afficher", available_weeks, key="p1_week_sel")
         with col_w2:
-            st.write("") # Alignement vertical
-            if st.button("🗑️ Supprimer cette semaine"):
+            st.write("")
+            if st.button("🗑️ Supprimer cette semaine", disabled=(not is_admin)):
                 del st.session_state.history_data['plannings'][st.session_state.current_week]
                 save_history()
                 st.session_state.current_week = None
@@ -625,12 +544,10 @@ with tab1:
                 
     week_name_input = st.text_input("Nom de la semaine à enregistrer", value=default_week_name, placeholder="Ex: S33, Semaine 34, etc.")
     
-    if st.button("🚀 Lancer l'import et le regroupement", key="btn_p1"):
+    if st.button("🚀 Lancer l'import et le regroupement", key="btn_p1", disabled=(not is_admin)):
         if files_planning:
             week_num = week_name_input.strip() if week_name_input else default_week_name
-            if not week_num:
-                week_num = f"S{datetime.datetime.now().isocalendar().week:02d}"
-                
+            if not week_num: week_num = f"S{datetime.datetime.now().isocalendar().week:02d}"
             with st.spinner("Traitement des fichiers en cours..."):
                 planning_df = parse_planning(files_planning, jours)
                 st.session_state.history_data['plannings'][week_num] = planning_df
@@ -645,7 +562,6 @@ with tab1:
     if current_planning is not None:
         st.markdown("---")
         display_planning = current_planning.copy()
-        
         dates_map = get_dates_from_week(st.session_state.current_week)
         rename_map = {}
         for j in jours:
@@ -657,7 +573,6 @@ with tab1:
                 rename_map[f'{j}_Flag'] = f'{d_str} - Présent'
                 
         display_planning = display_planning.rename(columns=rename_map)
-        
         for j in jours:
             d_str = dates_map[j].strftime('%d/%m/%Y')
             for suffix in [' - Début', ' - Fin', ' - Pause']:
@@ -677,7 +592,7 @@ with tab1:
 with tab2:
     st.header("Liste des collaborateurs")
     
-    if st.button("📥 Charger le fichier Planification Visite"):
+    if st.button("📥 Charger le fichier Planification Visite", disabled=(not is_admin)):
         if file_a_passer is not None:
             with st.spinner("Lecture du fichier..."):
                 medical_df = parse_liste_visite(file_a_passer)
@@ -716,16 +631,14 @@ with tab2:
         col_e, col_d = st.columns([3, 1])
         with col_e:
             st.download_button(
-                label="📥 Exporter la liste (Excel)",
-                data=to_excel(display_p2[export_cols]),
-                file_name="export_liste_visite.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                label="📥 Exporter la liste (Excel)", data=to_excel(display_p2[export_cols]),
+                file_name="export_liste_visite.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with col_d:
             with st.expander("⚠️ Zone de danger"):
                 st.warning("Cette action supprimera définitivement la liste et tout l'historique de suivi.")
                 confirm_p2 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p2")
-                if st.button("🗑️ Supprimer ALL", disabled=not confirm_p2, key="btn_del_p2"):
+                if st.button("🗑️ Supprimer ALL", disabled=(not confirm_p2 or not is_admin), key="btn_del_p2"):
                     st.session_state.history_data['medical_list'] = None
                     save_history()
                     st.success("Liste supprimée avec succès.")
@@ -757,7 +670,6 @@ with tab3:
             
             st.markdown("---")
             
-            # Formulaire compact sur une ligne
             with st.form("planning_form"):
                 days_to_plan = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
                 cols = st.columns(5)
@@ -766,10 +678,7 @@ with tab3:
                 for i, day_name in enumerate(days_to_plan):
                     with cols[i]:
                         st.markdown(f"**{day_name}**")
-                        # Case à cocher pour activer/désactiver le jour
-                        actif = st.checkbox(f"Activer", value=True, key=f"actif_{i}")
-                        
-                        # Date calculée automatiquement et désactivée
+                        actif = st.checkbox("Activer", value=True, key=f"actif_{i}")
                         d = monday + datetime.timedelta(days=i)
                         st.date_input("Date", d, key=f"date_{i}", label_visibility="collapsed", disabled=True)
                         
@@ -784,17 +693,13 @@ with tab3:
                             'qty_amazon': n1, 'qty_others': n2, 'prio': prio
                         })
                         
-                submitted = st.form_submit_button("🚀 Générer la planification automatique")
+                submitted = st.form_submit_button("🚀 Générer la planification automatique", disabled=(not is_admin))
                 
             if submitted:
                 total_planned = 0
                 errors = []
-                
                 for config in plan_configs:
-                    # Ignorer ce jour si la case "Activer" est décochée
-                    if not config['actif']:
-                        continue
-                        
+                    if not config['actif']: continue
                     date_obj = config['date']
                     day_idx = date_obj.weekday()
                     sel_day = jours[day_idx]
@@ -815,17 +720,12 @@ with tab3:
                         
                     working_df['_is_avail'] = working_df.apply(lambda r: is_available_during_slot(r, de_col, a_col, config['debut'], config['fin']), axis=1)
                     working_df = working_df[working_df['_is_avail']].copy()
-                    
                     working_df = working_df[~working_df['Statut Visite'].isin(['Planifié', 'Visite Faite'])]
                     
-                    # NOUVELLE LOGIQUE DE TRI : Priorité Visite AVANT Ancienneté
                     if config['prio'] != "Aucune priorité" and 'Priorité Visite' in working_df.columns:
-                        # On crée une colonne True/False : True si la priorité correspond exactement
                         working_df['_is_priority'] = working_df['Priorité Visite'].astype(str).str.strip().str.lower() == config['prio'].lower()
-                        # Tri : True d'abord (ascending=False sur booléen met True avant), puis Ancienneté décroissante
                         working_df = working_df.sort_values(by=['_is_priority', 'Ancienneté_num'], ascending=[False, False])
                     else:
-                        # Si "Aucune priorité", on trie juste par ancienneté
                         working_df = working_df.sort_values(by=['Ancienneté_num'], ascending=False)
                     
                     is_amazon = working_df['Projet'].astype(str).str.contains('AMAZON', case=False, na=False)
@@ -844,7 +744,6 @@ with tab3:
                         
                 st.session_state.history_data['medical_list'] = medical_list
                 save_history()
-                
                 if errors:
                     for err in errors: st.warning(err)
                 if total_planned > 0:
@@ -863,7 +762,6 @@ with tab3:
                 (pd.to_datetime(medical_list['Date Visite'], errors='coerce') >= pd.Timestamp(start_date)) & 
                 (pd.to_datetime(medical_list['Date Visite'], errors='coerce') <= pd.Timestamp(end_date))
             ].copy()
-            
             planned_this_week = planned_this_week.drop(columns=['Shift Début', 'Shift Fin'], errors='ignore')
             
             def enrich_shifts(df_to_enrich, history_plannings):
@@ -910,7 +808,7 @@ with tab3:
                 
                 col_d1, col_d2 = st.columns([1, 3])
                 with col_d1:
-                    if st.button("🗑️ Tout déplanifier (cette semaine)"):
+                    if st.button("🗑️ Tout déplanifier (cette semaine)", disabled=(not is_admin)):
                         mask = (medical_list['Statut Visite'] == 'Planifié') & \
                                (pd.to_datetime(medical_list['Date Visite'], errors='coerce') >= pd.Timestamp(start_date)) & \
                                (pd.to_datetime(medical_list['Date Visite'], errors='coerce') <= pd.Timestamp(end_date))
@@ -926,7 +824,7 @@ with tab3:
                 
                 with st.expander("❌ Annuler ou modifier la planification (individuelle)"):
                     ids_to_unplan = st.multiselect("Sélectionner les IDs à déplanifier", planned_this_week['WORKDAY ID'].tolist())
-                    if st.button("Valider la déplanification sélectionnée"):
+                    if st.button("Valider la déplanification sélectionnée", disabled=(not is_admin)):
                         mask = medical_list['WORKDAY ID'].isin(ids_to_unplan)
                         medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                         medical_list.loc[mask, 'Date Visite'] = pd.NaT
@@ -956,10 +854,8 @@ with tab4:
         
         st.markdown("---")
         st.download_button(
-            label="📥 Exporter la planification globale (Excel)",
-            data=to_excel(planned_list[show_cols]),
-            file_name="planification_globale.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            label="📥 Exporter la planification globale (Excel)", data=to_excel(planned_list[show_cols]),
+            file_name="planification_globale.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     else:
         st.warning("Aucune donnée disponible. Importez la liste (Page 2).")
@@ -970,11 +866,9 @@ with tab5:
     
     st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
     
-    is_admin = st.session_state.get("role") == "admin"
-    
     col_imp, col_del = st.columns([3, 1])
     with col_imp:
-        if st.button("📥 Importer le fichier RTA", disabled=not is_admin):
+        if st.button("📥 Importer le fichier RTA", disabled=(not is_admin)):
             if file_rta is not None:
                 with st.spinner("Mise à jour des données..."):
                     rta_df = parse_rta_file(file_rta)
@@ -987,7 +881,7 @@ with tab5:
                 st.error("Veuillez importer le fichier RTA dans le menu de gauche.")
     with col_del:
         if st.session_state.history_data.get('rta_data') is not None:
-            if st.button("🗑️ Supprimer RTA", disabled=not is_admin):
+            if st.button("🗑️ Supprimer RTA", disabled=(not is_admin)):
                 st.session_state.history_data['rta_data'] = None
                 save_history()
                 st.success("Données RTA supprimées.")
@@ -999,12 +893,8 @@ with tab5:
     rta_data = st.session_state.history_data.get('rta_data')
     if rta_data is not None:
         display_rta = rta_data.copy()
-        
         display_rta.columns = [str(c).strip() for c in display_rta.columns]
-        rename_dict = {
-            'PROJET': 'Projet',
-            'COMMENTAIRES': 'Commentaire'
-        }
+        rename_dict = {'PROJET': 'Projet', 'COMMENTAIRES': 'Commentaire'}
         display_rta = display_rta.rename(columns={k: v for k, v in rename_dict.items() if k in display_rta.columns})
         
         if 'Nom' in display_rta.columns and 'Prénom' in display_rta.columns:
@@ -1052,7 +942,6 @@ with tab6:
     
     if rta_data is not None:
         abs_df = rta_data.copy()
-        
         if 'Statut Visite' not in abs_df.columns: abs_df['Statut Visite'] = ''
         if 'Commentaire' not in abs_df.columns: abs_df['Commentaire'] = ''
             
@@ -1075,10 +964,8 @@ with tab6:
         
         st.markdown("---")
         st.download_button(
-            label="📥 Exporter les absences (Excel)",
-            data=to_excel(abs_df[show_cols]),
-            file_name="absences_visites.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            label="📥 Exporter les absences (Excel)", data=to_excel(abs_df[show_cols]),
+            file_name="absences_visites.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     else:
         st.warning("Aucune donnée disponible. Veuillez importer le fichier RTA (Page 5).")
@@ -1097,7 +984,6 @@ with tab7:
     if rta_data is not None:
         med_df = rta_data.copy()
         
-        # Calcul de la durée si les colonnes existent
         if 'Heure Départ' in med_df.columns and 'Heure Retour' in med_df.columns:
             med_df['Heure Départ'] = pd.to_datetime(med_df['Heure Départ'], errors='coerce')
             med_df['Heure Retour'] = pd.to_datetime(med_df['Heure Retour'], errors='coerce')
@@ -1106,36 +992,30 @@ with tab7:
         else:
             med_df['Durée (min)'] = np.nan
             
-        # Mapping du projet
         if 'Projet' in med_df.columns:
             med_df['Projet_Affichage'] = med_df['Projet'].apply(get_mapped_project)
         else:
             med_df['Projet_Affichage'] = 'N/A'
             
-        # S'assurer que les colonnes existent pour éviter les erreurs
         for col in ['Statut Visite', 'Commentaire', 'Nom', 'Prénom', 'Date Visite']:
             if col not in med_df.columns:
                 med_df[col] = ''
         
-        # Évaluation dynamique basée sur les règles strictes (Statut et Commentaire)
         med_df['Graph Status'] = med_df.apply(get_final_status, axis=1)
         
         st.markdown("---")
         
-        # Filtre par Projet (Liste déroulante figée en haut)
         available_projects = sorted(med_df['Projet_Affichage'].unique().tolist())
         selected_projects = st.multiselect("Filtrer par Projet", available_projects, default=available_projects, key="p7_projet_filter")
         
-        # Appliquer le filtre sur tout le dashboard
         if selected_projects:
             med_df = med_df[med_df['Projet_Affichage'].isin(selected_projects)]
         else:
-            med_df = med_df.iloc[0:0] # Vide le dataframe si rien n'est sélectionné
+            med_df = med_df.iloc[0:0]
             
         condition_fait = med_df['Graph Status'] == 'Visite effectuée'
         condition_abs = med_df['Graph Status'] == 'Absent/Reporté'
         
-        # Métriques
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         total_a_passer = len(med_df)
         total_fait = len(med_df[condition_fait])
@@ -1149,10 +1029,8 @@ with tab7:
         
         st.markdown("---")
         
-        # Calcul de l'ordre des projets (du plus grand nombre total au plus petit)
         project_order = med_df['Projet_Affichage'].value_counts().index.tolist()
         
-        # Graphique 1 : Total vs Planifié
         st.subheader("1. Total à passer vs Planifié")
         g1_df = med_df.copy()
         
@@ -1172,71 +1050,45 @@ with tab7:
             counts_df = counts_df.sort_values('Total', ascending=False)
             
             fig1 = px.bar(
-                counts_df, 
-                x='Projet_Affichage', 
-                y='Total',
-                color_discrete_sequence=['#747474']
+                counts_df, x='Projet_Affichage', y='Total',
+                title="Total à passer vs Planifié par projet", color_discrete_sequence=['#747474']
             )
             fig1.data[0].name = 'Total'
             fig1.data[0].text = counts_df['Total']
             fig1.data[0].textposition = 'outside'
             
             fig1.add_bar(
-                x=counts_df['Projet_Affichage'], 
-                y=counts_df['Planifié'],
-                name='Planifié',
-                marker_color='#003D5B',
-                text=counts_df['Planifié'],
-                textposition='auto'
+                x=counts_df['Projet_Affichage'], y=counts_df['Planifié'],
+                name='Planifié', marker_color='#003D5B', text=counts_df['Planifié'], textposition='auto'
             )
-            
-            fig1.update_layout(
-                barmode='overlay', 
-                legend_title_text='Légende',
-                yaxis_range=[0, counts_df['Total'].max() * 1.15]
-            )
+            fig1.update_layout(barmode='overlay', legend_title_text='Légende', yaxis_range=[0, counts_df['Total'].max() * 1.15])
             st.plotly_chart(fig1, use_container_width=True)
         else:
             st.info("Aucune donnée disponible.")
             
         st.markdown("---")
         
-        # Graphique 2 : Planifié vs Visite effectuée vs Absents/Reporté
         st.subheader("2. Planifié vs Visite effectuée vs Absents/Reporté")
-        
         g2_data = []
         for proj in project_order:
             proj_df = med_df[med_df['Projet_Affichage'] == proj]
-            
             planifie_count = len(proj_df[proj_df['Statut Visite'].astype(str).str.strip().str.lower().isin(['planifié', 'planifie'])])
-            
             com_lower = proj_df['Commentaire'].astype(str).str.lower()
             faite_count = len(proj_df[com_lower.str.contains('ok', na=False)])
             abs_count = len(proj_df[com_lower.str.contains('absent|report', na=False)])
-            
-            # On n'ajoute le projet que s'il a au moins 1 personne dans l'un des 3 statuts
             if planifie_count + faite_count + abs_count > 0:
-                g2_data.append({
-                    'Projet_Affichage': proj, 
-                    'Planifié': planifie_count, 
-                    'Visite effectuée': faite_count, 
-                    'Absent/Reporté': abs_count
-                })
+                g2_data.append({'Projet_Affichage': proj, 'Planifié': planifie_count, 'Visite effectuée': faite_count, 'Absent/Reporté': abs_count})
             
         counts_g2_df = pd.DataFrame(g2_data)
         
         if not counts_g2_df.empty:
-            # Trier du plus grand nombre de Planifié au plus petit
             counts_g2_df = counts_g2_df.sort_values('Planifié', ascending=False)
             g2_order = counts_g2_df['Projet_Affichage'].tolist()
             
             fig2 = px.bar(
-                counts_g2_df, 
-                x='Projet_Affichage', 
-                y=['Planifié', 'Visite effectuée', 'Absent/Reporté'],
-                barmode='group',
-                text_auto=True,
-                category_orders={'Projet_Affichage': g2_order},
+                counts_g2_df, x='Projet_Affichage', y=['Planifié', 'Visite effectuée', 'Absent/Reporté'],
+                barmode='group', title="Statut des visites (Planifié, Effectuée, Absent/Reporté)",
+                text_auto=True, category_orders={'Projet_Affichage': g2_order},
                 color_discrete_sequence=['#003D5B', '#25E2CC', '#FBCA18']
             )
             fig2.update_traces(textposition='outside')
@@ -1248,16 +1100,9 @@ with tab7:
             
         st.markdown("---")
         
-        # Inversion des emplacements : Anneau à gauche, Durée Moyenne à droite
         col_p1, col_p2 = st.columns([1, 2])
         with col_p1:
             st.subheader("Avancement Global")
-            
-            # --- PARAMÈTRES DE L'ANNEAU (Faciles à modifier) ---
-            ANNEAU_ROTATION = 0        # 90 = Démarre à 12h (Midi). 0 = Démarre à 3h.
-            ANNEAU_DIRECTION = 'clockwise' # 'clockwise' = sens horaire. 'counterclockwise' = sens inverse.
-            ANNEAU_EPAISSEUR = 0.6      # 0.4 = épais, 0.6 = fin, 0.8 = très fin.
-            HACHURE_TAILLE = 8          # Taille du motif (plus c'est grand, plus les traits sont épais).
             
             if total_a_passer > 0:
                 val_effectuee = total_fait
@@ -1265,76 +1110,29 @@ with tab7:
                 val_non_planifie = max(0, total_a_passer - total_planifie)
                 
                 donut_data = []
-                if val_effectuee > 0:
-                    donut_data.append({'Statut': 'Visite effectuée', 'Nombre': val_effectuee})
-                if val_reste_planifie > 0:
-                    donut_data.append({'Statut': 'Reste Planifié', 'Nombre': val_reste_planifie})
-                if val_non_planifie > 0:
-                    donut_data.append({'Statut': 'Non Planifié', 'Nombre': val_non_planifie})
-                    
+                if val_effectuee > 0: donut_data.append({'Statut': 'Visite effectuée', 'Nombre': val_effectuee})
+                if val_reste_planifie > 0: donut_data.append({'Statut': 'Reste Planifié', 'Nombre': val_reste_planifie})
+                if val_non_planifie > 0: donut_data.append({'Statut': 'Non Planifié', 'Nombre': val_non_planifie})
                 donut_df = pd.DataFrame(donut_data)
                 
                 fig_site = px.pie(
-                    donut_df, 
-                    names='Statut', 
-                    values='Nombre', 
-                    color='Statut',
-                    title="Planifié & Effectuée vs Total", 
-                    hole=ANNEAU_EPAISSEUR,
+                    donut_df, names='Statut', values='Nombre', color='Statut',
+                    title="Planifié & Effectuée vs Total", hole=0.6, rotation=90, direction='clockwise',
                     color_discrete_map={
-                        'Visite effectuée': '#25E2CC', 
-                        'Reste Planifié': '#003D5B',   
-                        'Non Planifié': '#747474'      
+                        'Visite effectuée': '#25E2CC', 'Reste Planifié': '#003D5B', 'Non Planifié': '#747474'      
                     }
-                )
-                
-                fig_site.update_traces(sort=False, rotation=ANNEAU_ROTATION, direction=ANNEAU_DIRECTION)
-                
-                # Configuration des motifs (Hachures)
-                shapes = ['/' if s == 'Visite effectuée' else '' for s in donut_df['Statut']]
-                
-                # Inversion des couleurs pour la visite effectuée : 
-                # Fond en bleu marine (bgcolor) et Lignes en turquoise (fgcolor)
-                bgcolors = ['#003D5B' if s == 'Visite effectuée' else ('#003D5B' if s == 'Reste Planifié' else '#747474') for s in donut_df['Statut']]
-                fcolors = ['#25E2CC' if s == 'Visite effectuée' else '#FFFFFF' for s in donut_df['Statut']]
-                
-                fig_site.update_traces(
-                    marker=dict(
-                        pattern=dict(
-                            shape=shapes, 
-                            fillmode='overlay', 
-                            fgcolor=fcolors, # Couleur des lignes (Turquoise)
-                            bgcolor=bgcolors, # Couleur de fond (Bleu marine)
-                            size=HACHURE_TAILLE
-                        )
-                    )
                 )
                 
                 pct_planif = (total_planifie / total_a_passer * 100)
                 pct_fait = (total_fait / total_a_passer * 100)
-                
                 custom_text = []
                 for s in donut_df['Statut']:
-                    if s == 'Visite effectuée':
-                        custom_text.append(f"Visite effectuée<br>{total_fait} ({pct_fait:.1f}%)")
-                    elif s == 'Reste Planifié':
-                        custom_text.append(f"Total Planifié<br>{total_planifie} ({pct_planif:.1f}%)")
-                    else:
-                        custom_text.append("")
+                    if s == 'Visite effectuée': custom_text.append(f"Visite effectuée<br>{total_fait} ({pct_fait:.1f}%)")
+                    elif s == 'Reste Planifié': custom_text.append(f"Total Planifié<br>{total_planifie} ({pct_planif:.1f}%)")
+                    else: custom_text.append("")
                 
-                # Pour forcer l'affichage des lignes de connexion, on "tire" légèrement les tranches
-                pull_values = [0.05 if s in ['Visite effectuée', 'Reste Planifié'] else 0 for s in donut_df['Statut']]
-                
-                fig_site.update_traces(
-                    text=custom_text, 
-                    textinfo='text', 
-                    textposition='outside',
-                    outsidetextfont_size=12,
-                    pull=pull_values, # <-- Ajoute les lignes de connexion
-                    insidetextorientation='radial'
-                )
+                fig_site.update_traces(text=custom_text, textinfo='text', textposition='outside', outsidetextfont_size=12)
                 fig_site.update_layout(showlegend=False, margin=dict(t=40, b=20, l=20, r=20))
-                
                 st.plotly_chart(fig_site, use_container_width=True)
             else:
                 st.info("Aucune donnée disponible.")
@@ -1351,7 +1149,6 @@ with tab7:
         
         st.markdown("---")
         
-        # Top 5 maintenant en bas sur toute la largeur
         st.subheader("Top 5 des durées les plus élevées")
         top5_df = med_df.dropna(subset=['Durée (min)']).nlargest(5, 'Durée (min)')[['WORKDAY ID', 'Nom', 'Prénom', 'Projet_Affichage', 'Heure Départ', 'Heure Retour', 'Durée (min)']].copy()
         if not top5_df.empty:
@@ -1388,7 +1185,6 @@ with tab7:
         
         st.markdown("---")
         st.subheader("📥 Extraction complète (Format Export)")
-        
         export_cols = [c for c in ['WORKDAY ID', 'Nom', 'Projet_Affichage', 'Statut Visite', 'Date Visite'] if c in med_df.columns]
         st.download_button(
             label="Télécharger le suivi global (Format Export)", data=to_excel(med_df[export_cols]),
@@ -1399,6 +1195,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px;'>RAVO SERGIO</span></div>", 
+    "<div class='footer-fix'>Outil de Suivi Médical - Adapté de LogiPlan par <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px;'>RAVO SERGIO</span></div>", 
     unsafe_allow_html=True
 )
