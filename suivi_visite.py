@@ -7,23 +7,35 @@ import os
 import pickle
 import plotly.express as px
 import re
+import contextlib
 
 import streamlit as st
 import pymongo
 import bson
+
 # --- SYSTÈME D'AUTHENTIFICATION ---
 def check_password():
     def password_entered():
-        if st.session_state["username"] in st.secrets["passwords"] and \
-           st.session_state["password"] == st.secrets["passwords"][st.session_state["username"]]:
+        user = st.session_state["username"]
+        pwd = st.session_state["password"]
+        
+        admin_users = st.secrets.get("admin", {})
+        consult_users = st.secrets.get("consultation", {})
+        
+        if user in admin_users and pwd == admin_users[user]:
             st.session_state["password_correct"] = True
+            st.session_state["role"] = "admin"
+            del st.session_state["password"]
+        elif user in consult_users and pwd == consult_users[user]:
+            st.session_state["password_correct"] = True
+            st.session_state["role"] = "consultation"
             del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.text_input("concentrix", key="username")
-        st.text_input("Visite2026", type="password", key="password")
+        st.text_input("Nom d'utilisateur", key="username")
+        st.text_input("Mot de passe", type="password", key="password")
         st.button("Se connecter", on_click=password_entered)
         return False
     elif not st.session_state["password_correct"]:
@@ -36,7 +48,7 @@ def check_password():
         return True
 
 if not check_password():
-    st.stop()  # Bloque le reste du code si la personne n'est pas connectée
+    st.stop()
 
 # --- NETTOYAGE DU CACHE ---
 st.cache_data.clear()
@@ -550,15 +562,34 @@ def parse_rta_file(file):
         return None
 
 # --- AFFICHAGE DES ONGLETS ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📄 1. Regroupement Planning", 
-    "👥 2. Liste de collaborateurs", 
-    "📅 3. Planification Automatisée",
-    "📋 4. Planification Globale",
-    "✅ 5. Import RTA & Suivi", 
-    "🚫 6. Absences", 
-    "📊 7. Dashboard & Extractions"
-])
+
+# Création d'un faux onglet pour masquer les pages aux non-admins
+@contextlib.contextmanager
+def dummy_tab():
+    yield
+
+role = st.session_state.get("role", "consultation")
+
+if role == "admin":
+    # L'admin voit les 7 onglets
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+        "📄 1. Regroupement Planning", 
+        "👥 2. Liste de collaborateurs", 
+        "📅 3. Planification Automatisée",
+        "📋 4. Planification Globale",
+        "✅ 5. Import RTA & Suivi", 
+        "🚫 6. Absences", 
+        "📊 7. Dashboard & Extractions"
+    ])
+else:
+    # Le visiteur ne voit que les 3 derniers onglets (les 4 premiers sont désactivés)
+    dummy = dummy_tab()
+    tab1, tab2, tab3, tab4 = dummy, dummy, dummy, dummy
+    tab5, tab6, tab7 = st.tabs([
+        "✅ Import RTA & Suivi", 
+        "🚫 Absences", 
+        "📊 Dashboard & Extractions"
+    ])
 
 # --- PAGE 1 : REGROUPEMENT AVEC HISTORIQUE INTÉGRÉ ---
 with tab1:
@@ -908,7 +939,7 @@ with tab3:
                         st.rerun()
             else:
                 st.info("Aucune personne planifiée pour cette semaine pour le moment.")
-                
+
 # --- PAGE 4 : PLANIFICATION GLOBALE ---
 with tab4:
     st.header("📋 Planification Globale")
@@ -939,9 +970,11 @@ with tab5:
     
     st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
     
+    is_admin = st.session_state.get("role") == "admin"
+    
     col_imp, col_del = st.columns([3, 1])
     with col_imp:
-        if st.button("📥 Importer le fichier RTA"):
+        if st.button("📥 Importer le fichier RTA", disabled=not is_admin):
             if file_rta is not None:
                 with st.spinner("Mise à jour des données..."):
                     rta_df = parse_rta_file(file_rta)
@@ -954,7 +987,7 @@ with tab5:
                 st.error("Veuillez importer le fichier RTA dans le menu de gauche.")
     with col_del:
         if st.session_state.history_data.get('rta_data') is not None:
-            if st.button("🗑️ Supprimer RTA"):
+            if st.button("🗑️ Supprimer RTA", disabled=not is_admin):
                 st.session_state.history_data['rta_data'] = None
                 save_history()
                 st.success("Données RTA supprimées.")
