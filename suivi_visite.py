@@ -50,6 +50,9 @@ def check_password():
 if not check_password():
     st.stop()
 
+# Récupération du rôle pour conditionner l'affichage
+role = st.session_state.get("role", "consultation")
+
 # --- NETTOYAGE DU CACHE ---
 st.cache_data.clear()
 
@@ -166,9 +169,15 @@ st.title("🏥 Suivi des Visites Médicales")
 
 # --- BARRE LATÉRALE AVEC IMPORTS RÉDUITS ---
 with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
-    files_planning = st.file_uploader("Fichiers Planning (Obligatoire)", type=['xlsx', 'xls', 'xlsb'], accept_multiple_files=True)
-    file_a_passer = st.file_uploader("Fichier PLANIFICATION VISITE SYSTEMATIQUE", type=['xlsx'])
-    file_rta = st.file_uploader("Fichier Enregistrement visite médicale (RTA)", type=['xlsx'])
+    if role == "admin":
+        files_planning = st.file_uploader("Fichiers Planning (Obligatoire)", type=['xlsx', 'xls', 'xlsb'], accept_multiple_files=True)
+        file_a_passer = st.file_uploader("Fichier PLANIFICATION VISITE SYSTEMATIQUE", type=['xlsx'])
+        file_rta = st.file_uploader("Fichier Enregistrement visite médicale (RTA)", type=['xlsx'])
+    else:
+        st.info("🔒 Mode consultation : Vous n'avez pas accès aux imports de fichiers.")
+        files_planning = None
+        file_a_passer = None
+        file_rta = None
 
 jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -568,8 +577,6 @@ def parse_rta_file(file):
 def dummy_tab():
     yield
 
-role = st.session_state.get("role", "consultation")
-
 if role == "admin":
     # L'admin voit les 7 onglets
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -968,30 +975,32 @@ with tab4:
 with tab5:
     st.header("📥 Import du fichier RTA et Suivi")
     
-    st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
+    # Seuls les admins peuvent voir et utiliser les boutons d'import et de suppression
+    if role == "admin":
+        st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
+        
+        col_imp, col_del = st.columns([3, 1])
+        with col_imp:
+            if st.button("📥 Importer le fichier RTA"):
+                if file_rta is not None:
+                    with st.spinner("Mise à jour des données..."):
+                        rta_df = parse_rta_file(file_rta)
+                        if rta_df is not None:
+                            st.session_state.history_data['rta_data'] = rta_df
+                            save_history()
+                            st.success("✅ Données RTA importées avec succès !")
+                            st.rerun()
+                else:
+                    st.error("Veuillez importer le fichier RTA dans le menu de gauche.")
+        with col_del:
+            if st.session_state.history_data.get('rta_data') is not None:
+                if st.button("🗑️ Supprimer RTA"):
+                    st.session_state.history_data['rta_data'] = None
+                    save_history()
+                    st.success("Données RTA supprimées.")
+                    st.rerun()
+        st.markdown("---")
     
-    col_imp, col_del = st.columns([3, 1])
-    with col_imp:
-        if st.button("📥 Importer le fichier RTA"):
-            if file_rta is not None:
-                with st.spinner("Mise à jour des données..."):
-                    rta_df = parse_rta_file(file_rta)
-                    if rta_df is not None:
-                        st.session_state.history_data['rta_data'] = rta_df
-                        save_history()
-                        st.success("✅ Données RTA importées avec succès !")
-                        st.rerun()
-            else:
-                st.error("Veuillez importer le fichier RTA dans le menu de gauche.")
-    with col_del:
-        if st.session_state.history_data.get('rta_data') is not None:
-            if st.button("🗑️ Supprimer RTA"):
-                st.session_state.history_data['rta_data'] = None
-                save_history()
-                st.success("Données RTA supprimées.")
-                st.rerun()
-            
-    st.markdown("---")
     st.subheader("Données de la feuille 'Suivi'")
     
     rta_data = st.session_state.history_data.get('rta_data')
@@ -1252,7 +1261,7 @@ with tab7:
             st.subheader("Avancement Global")
             
             # --- PARAMÈTRES DE L'ANNEAU (Faciles à modifier) ---
-            ANNEAU_ROTATION = 0        # 90 = Démarre à 12h (Midi). 0 = Démarre à 3h.
+            ANNEAU_ROTATION = 0        # 0 = Démarre à 12h (Midi)
             ANNEAU_DIRECTION = 'clockwise' # 'clockwise' = sens horaire. 'counterclockwise' = sens inverse.
             ANNEAU_EPAISSEUR = 0.6      # 0.4 = épais, 0.6 = fin, 0.8 = très fin.
             HACHURE_TAILLE = 8          # Taille du motif (plus c'est grand, plus les traits sont épais).
