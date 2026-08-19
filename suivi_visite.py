@@ -11,6 +11,32 @@ import re
 import streamlit as st
 import pymongo
 import bson
+# --- SYSTÈME D'AUTHENTIFICATION ---
+def check_password():
+    def password_entered():
+        if st.session_state["username"] in st.secrets["passwords"] and \
+           st.session_state["password"] == st.secrets["passwords"][st.session_state["username"]]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Nom d'utilisateur", key="username")
+        st.text_input("Mot de passe", type="password", key="password")
+        st.button("Se connecter", on_click=password_entered)
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Nom d'utilisateur", key="username")
+        st.text_input("Mot de passe", type="password", key="password")
+        st.button("Se connecter", on_click=password_entered)
+        st.error("😕 Utilisateur ou mot de passe inconnu")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()  # Bloque le reste du code si la personne n'est pas connectée
 
 # --- NETTOYAGE DU CACHE ---
 st.cache_data.clear()
