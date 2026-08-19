@@ -4,5 +4,4 @@ numpy
 openpyxl
 plotly
 pyxlsb
-pymongo
-dnspython
+pymongo[srv]
