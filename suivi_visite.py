@@ -239,37 +239,6 @@ custom_css = """
         color: #002032 !important;
         fill: #002032 !important;
     }
-    /* --- Masquer les éléments Streamlit Cloud (Bouton rouge, Avatar, Logo) --- */
-    
-    /* Cible le bouton de déploiement "Hosted with Streamlit" (rouge avec couronne) */
-    .stDeployButton,
-    div[data-testid="stDeployButton"],
-    a[href*="streamlit.io/cloud"],
-    button[kind="header"] {
-        display: none !important;
-    }
-    
-    /* Cible l'avatar du créateur de l'application */
-    [data-testid="appCreatorAvatar"] {
-        display: none !important;
-    }
-    
-    /* Cible le logo Streamlit et son conteneur dynamique (la bulle de dialogue) */
-    [data-testid="stLogo"],
-    div[class*="_link_"],
-    div[class*="_profileContainer_"],
-    div[class*="_hoverContainer_"] {
-        display: none !important;
-    }
-    
-    /* Masquer tout le conteneur de la barre d'outils en haut à droite */
-    [data-testid="stHeader"] [data-testid="stToolbar"] {
-        display: none !important;
-    }
-
-    /* Masquer le menu hamburger et le footer Streamlit */
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
