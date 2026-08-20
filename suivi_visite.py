@@ -239,7 +239,17 @@ custom_css = """
         color: #002032 !important;
         fill: #002032 !important;
     }
-    
+        /* Masquer l'avatar du créateur de l'application sur Streamlit Cloud */
+    [data-testid="appCreatorAvatar"] {
+        display: none !important;
+    }
+
+    /* Masquer le logo Streamlit et le lien "Create an app" */
+    [data-testid="stLogo"],
+    .stApp a[href*="streamlit.io"],
+    div[class*="_link_"] {
+        display: none !important;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
