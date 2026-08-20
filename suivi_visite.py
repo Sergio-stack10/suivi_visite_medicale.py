@@ -1435,6 +1435,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Powerd by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>", 
+    "<div class='footer-fix'>Developped by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>", 
     unsafe_allow_html=True
 )
