@@ -239,7 +239,6 @@ custom_css = """
         color: #002032 !important;
         fill: #002032 !important;
     }
-
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
