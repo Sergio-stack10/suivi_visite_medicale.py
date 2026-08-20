@@ -112,6 +112,66 @@ with st.sidebar:
 
 st.title("🏥 Suivi des Visites Médicales")
 
+# --- DICTIONNAIRE DE MAPPAGE DES PROJETS ---
+def get_mapped_project(projet):
+    p = str(projet)
+    mapping = {
+        '18431': 'ORG ATH', '16187': 'BTL AT', '18354': 'AC',
+        '16294': 'TE FOC', '21548': 'BKM POLY', '17042': 'CPR',
+        '17439': 'FB', '25641': 'SHI', '16152': 'ORG HD',
+        '22280': 'AY', '16315': 'MF', '18142': 'BB',
+        '16872': 'CST', '16334': 'C+ INT', '12777': 'PF',
+        '16873': 'BF', '17139': 'LP', '17056': 'ZAL TMM',
+        '21565': 'SBX', '17057': 'VP SC', '16808': 'RRG',
+        '16669': 'IZI', '17178': 'BKM', '17060': 'AUC',
+        '11836': 'DRM', '11834': '3DS', '16966': 'LC',
+        '16643': 'ZAL TNR', '24323': 'LYX', '16950': 'DB TMM',
+        '17534': 'TRP', '17914': 'ZP', '16999': 'TII',
+        '16412': 'HP', '16952': 'BTL DIG', '17429': 'GRA',
+        '18175': 'RCI MG', '17230': 'JTR', '21550': 'CPR BE',
+        '18338': 'MZ', '17130': 'MO', '24158': 'YK',
+        '12480': 'C+ FR', '11753': 'VAL', '13966': 'H&H',
+        '17401': '24S', '16571': 'TRK', '25659': 'ZAL DE',
+        '11733': 'BF POLY', '23126': 'STC', '24474': 'CNX',
+        '23404': 'C2B', '17567': 'POL', '26711': 'ADV',
+        '24241': 'OPEX', '17043': 'DB TNR', '16827': 'LBC',
+        '18013': 'BA', '16897': 'LC ANT', '16953': 'STY',
+        '16437': 'ORG PRT', '18418': 'RIV TMM', '16352': 'RIV UK TMM',
+        '17131': 'FLT', '18345': 'RIV ANT', '16351': 'RIV UK ANT',
+        '26044': 'CNX', '980005758': 'LEAD', '980010299': 'ZPL',
+        '2517': 'RECRU'
+    }
+    for k, v in mapping.items():
+        if p.startswith(k):
+            return v
+    
+    str_mappings = {
+        'Depot Bingo Polyglot': 'DEPOT BINGO POLYGLOT', 'Gallinée': 'GALLINÉE',
+        'Direct Energie BOC': 'DIRECT ENERGIE BOC', 'Hostnfly': 'HOSTNFLY',
+        'TK Home Solutions': 'TK HOME SOLUTIONS', '4165 Piana': 'PIANA',
+        'Hellowork': 'HELLOWORK', 'Lydia': 'LYDIA', 'Club Funding': 'CLUB FUNDING',
+        'Wengo': 'WENGO', 'Califrais': 'CALIFRAIS', 'Joko': 'JOKO CUSTOMER CARE',
+        'WorlRemit': 'WORLREMIT', '4132 SENDWAVE': 'SENDWAVE', 'Tiiko': 'TIIKO',
+        'COLISEE': 'COLISEE', 'ENI SC': 'ENI SC', 'OMEO': 'OMEO',
+        'WORLDR SENDWAVE': 'WORLDR SENDWAVE', 'GPASPLUS': 'GPASPLUS',
+        'Footovision': 'FOOTOVISION', 'Sika Webhelp': 'SIKA WEBHELP OD',
+        'Tuffy Wall': 'TUFFY WALL', 'DOMISERVE': 'DOMISERVE',
+        '22409 - Pnp': 'PNP TMM', '22432 - Other': 'OTHER', '22409 - Other': 'OTHER',
+        '21317 - Legalplace': 'LEGALPLACE', '16679 - Gexel': 'GEXEL',
+        '2921 - Originenergy': 'ORIGINENERGY', '23330 - Opexother': 'OPEXOTHER',
+        '23776 - Other': 'OTHER', '14309 - Bytedance': 'BYTEDANCE',
+        '4125 - Ceaa': 'CEAA', '24818 - Power Fleet': 'POWERFLEET',
+        '12229 - Other': 'OTHER', '12230 - Other': 'OTHER',
+        'WHFR157 - P_DMS': 'BYTEL DIGITAL', 'WHFR2857 - P_4073': 'RIVER DE',
+        'WHUS012 - P_Gexel': 'GEXEL', 'WHFR2962 - Piana': 'PIANA',
+        'WHCRIT225 - A540 P_AL': 'VEEPEE SC', 'WHFR894 - P_TLS SGS': 'SGS',
+        'WHNL287 - Basic-fit': 'BASIC FIT NL', 'WHFR2963 - Colis Privac': 'COLIS PRIVÉ'
+    }
+    for k, v in str_mappings.items():
+        if k.lower() in p.lower():
+            return v
+    return p
+
 # --- BARRE LATÉRALE AVEC IMPORTS RÉDUITS ---
 with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
     if role == "admin":
