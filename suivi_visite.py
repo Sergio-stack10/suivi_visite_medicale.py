@@ -9,10 +9,11 @@ import plotly.express as px
 import re
 import contextlib
 import uuid
-
-import streamlit as st
 import pymongo
 import bson
+
+# --- CONFIGURATION DE LA PAGE (Doit être la 1ère commande Streamlit) ---
+st.set_page_config(page_title="Suivi Visites Médicales", page_icon="🏥", layout="wide")
 
 # --- SYSTÈME D'AUTHENTIFICATION ROBUSTE ---
 @st.cache_resource
@@ -107,141 +108,7 @@ with st.sidebar:
         st.rerun()
     st.markdown("---")
 
-# --- NETTOYAGE DU CACHE ---
-st.cache_data.clear()
-
-st.set_page_config(page_title="Suivi Visites Médicales", layout="wide")
-
-# --- DICTIONNAIRE DE MAPPAGE DES PROJETS ---
-def get_mapped_project(projet):
-    p = str(projet)
-    mapping = {
-        '18431': 'ORG ATH', '16187': 'BTL AT', '18354': 'AC',
-        '16294': 'TE FOC', '21548': 'BKM POLY', '17042': 'CPR',
-        '17439': 'FB', '25641': 'SHI', '16152': 'ORG HD',
-        '22280': 'AY', '16315': 'MF', '18142': 'BB',
-        '16872': 'CST', '16334': 'C+ INT', '12777': 'PF',
-        '16873': 'BF', '17139': 'LP', '17056': 'ZAL TMM',
-        '21565': 'SBX', '17057': 'VP SC', '16808': 'RRG',
-        '16669': 'IZI', '17178': 'BKM', '17060': 'AUC',
-        '11836': 'DRM', '11834': '3DS', '16966': 'LC',
-        '16643': 'ZAL TNR', '24323': 'LYX', '16950': 'DB TMM',
-        '17534': 'TRP', '17914': 'ZP', '16999': 'TII',
-        '16412': 'HP', '16952': 'BTL DIG', '17429': 'GRA',
-        '18175': 'RCI MG', '17230': 'JTR', '21550': 'CPR BE',
-        '18338': 'MZ', '17130': 'MO', '24158': 'YK',
-        '12480': 'C+ FR', '11753': 'VAL', '13966': 'H&H',
-        '17401': '24S', '16571': 'TRK', '25659': 'ZAL DE',
-        '11733': 'BF POLY', '23126': 'STC', '24474': 'CNX',
-        '23404': 'C2B', '17567': 'POL', '26711': 'ADV',
-        '24241': 'OPEX', '17043': 'DB TNR', '16827': 'LBC',
-        '18013': 'BA', '16897': 'LC ANT', '16953': 'STY',
-        '16437': 'ORG PRT', '18418': 'RIV TMM', '16352': 'RIV UK TMM',
-        '17131': 'FLT', '18345': 'RIV ANT', '16351': 'RIV UK ANT',
-        '26044': 'CNX', '980005758': 'LEAD', '980010299': 'ZPL',
-        '2517': 'RECRU'
-    }
-    for k, v in mapping.items():
-        if p.startswith(k):
-            return v
-    
-    str_mappings = {
-        'Depot Bingo Polyglot': 'DEPOT BINGO POLYGLOT', 'Gallinée': 'GALLINÉE',
-        'Direct Energie BOC': 'DIRECT ENERGIE BOC', 'Hostnfly': 'HOSTNFLY',
-        'TK Home Solutions': 'TK HOME SOLUTIONS', '4165 Piana': 'PIANA',
-        'Hellowork': 'HELLOWORK', 'Lydia': 'LYDIA', 'Club Funding': 'CLUB FUNDING',
-        'Wengo': 'WENGO', 'Califrais': 'CALIFRAIS', 'Joko': 'JOKO CUSTOMER CARE',
-        'WorlRemit': 'WORLREMIT', '4132 SENDWAVE': 'SENDWAVE', 'Tiiko': 'TIIKO',
-        'COLISEE': 'COLISEE', 'ENI SC': 'ENI SC', 'OMEO': 'OMEO',
-        'WORLDR SENDWAVE': 'WORLDR SENDWAVE', 'GPASPLUS': 'GPASPLUS',
-        'Footovision': 'FOOTOVISION', 'Sika Webhelp': 'SIKA WEBHELP OD',
-        'Tuffy Wall': 'TUFFY WALL', 'DOMISERVE': 'DOMISERVE',
-        '22409 - Pnp': 'PNP TMM', '22432 - Other': 'OTHER', '22409 - Other': 'OTHER',
-        '21317 - Legalplace': 'LEGALPLACE', '16679 - Gexel': 'GEXEL',
-        '2921 - Originenergy': 'ORIGINENERGY', '23330 - Opexother': 'OPEXOTHER',
-        '23776 - Other': 'OTHER', '14309 - Bytedance': 'BYTEDANCE',
-        '4125 - Ceaa': 'CEAA', '24818 - Power Fleet': 'POWERFLEET',
-        '12229 - Other': 'OTHER', '12230 - Other': 'OTHER',
-        'WHFR157 - P_DMS': 'BYTEL DIGITAL', 'WHFR2857 - P_4073': 'RIVER DE',
-        'WHUS012 - P_Gexel': 'GEXEL', 'WHFR2962 - Piana': 'PIANA',
-        'WHCRIT225 - A540 P_AL': 'VEEPEE SC', 'WHFR894 - P_TLS SGS': 'SGS',
-        'WHNL287 - Basic-fit': 'BASIC FIT NL', 'WHFR2963 - Colis Privac': 'COLIS PRIVÉ'
-    }
-    for k, v in str_mappings.items():
-        if k.lower() in p.lower():
-            return v
-    return p
-
-# --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
-custom_css = """
-<style>
-    .stApp, .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
-    html, body, .stApp { font-size: 14px; }
-    h1 { color: #25E2CC !important; font-weight: 600; padding-bottom: 10px; border-bottom: 2px solid #003D5B; }
-    section[data-testid="stSidebar"] { background-color: #002032; width: 260px !important; }
-    section[data-testid="stSidebar"] > div:first-child { width: 260px !important; padding-top: 20px; }
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"], 
-    section[data-testid="stSidebar"] label { font-size: 13px !important; color: #747474 !important; }
-    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #A8F3EB !important; font-size: 15px !important; }
-    .stTabs [data-baseweb="tab-list"] { gap: 15px; }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #FFFFFF; color: #2A2B2C; border: 2px solid #F2F2F2; border-radius: 8px;
-        padding: 12px 20px; clip-path: polygon(15px 0%, 100% 0%, 100% 100%, 15px 100%, 0% 50%);
-        font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s ease;
-    }
-    .stTabs [data-baseweb="tab"]:hover { border-color: #25E2CC; background-color: #E9FCFA; }
-    .stTabs [aria-selected="true"] { background-color: #003D5B !important; color: #FFFFFF !important; box-shadow: 0 4px 12px rgba(0, 115, 128, 0.3); }
-    .stTabs [data-baseweb="tab-highlight"] { background-color: transparent !important; }
-    .stTabs [data-baseweb="tab-border-bottom"] { display: none; }
-    div.stButton > button {
-        background-color: #003D5B; color: #FFFFFF; border: 2px solid #003D5B; padding: 10px 25px;
-        border-radius: 25px; font-weight: bold; box-shadow: 0 4px 8px rgba(0, 61, 91, 0.2); transition: all 0.3s ease;
-    }
-    div.stButton > button:hover { background-color: #FBCA18; color: #002032; border-color: #FBCA18; transform: translateY(-2px); }
-    .stDownloadButton > button { background-color: #25E2CC !important; color: #002032 !important; border: 2px solid #25E2CC !important; border-radius: 8px !important; font-weight: bold; }
-    .stDownloadButton > button:hover { background-color: #007380 !important; color: #FFFFFF !important; border-color: #007380 !important; }
-    .stAlert [data-testid="stAlertContent"] { border-left: 5px solid #25E2CC; }
-    [data-testid="stMetricValue"] { color: #007380; font-weight: bold; }
-    .footer-fix {
-        position: fixed !important; left: 0 !important; bottom: 0 !important; width: 100% !important;
-        background-color: #002032 !important; color: #FFFFFF !important; text-align: left !important;
-        font-size: 10px !important; padding: 5px 15px !important; z-index: 999999 !important; border-top: 1px solid #F2F2F2 !important;
-    }
-    /* Figer le filtre multiselect en haut de la page */
-    div[data-testid="stMultiSelect"] {
-        position: sticky !important;
-        top: 0 !important;
-        z-index: 999 !important;
-        background-color: transparent !important; /* Rend le fond transparent */
-        padding: 10px 0 !important;
-    }
-    /* --- Personnalisation du bouton Réduire/Afficher de la barre latérale --- */
-    
-    /* Forcer le bouton à rester toujours visible et coloré */
-    [data-testid="stSidebarCollapseButton"] {
-        opacity: 1 !important; /* Force la visibilité en permanence */
-        background-color: #003D5B !important;
-        border: 2px solid #25E2CC !important;
-        border-radius: 8px !important;
-    }
-    
-    /* Couleur de l'icône (la flèche) */
-    [data-testid="stSidebarCollapseButton"] svg {
-        color: #25E2CC !important;
-        fill: #25E2CC !important;
-    }
-
-    /* Effet au survol de la souris */
-    [data-testid="stSidebarCollapseButton"]:hover {
-        background-color: #25E2CC !important;
-    }
-    [data-testid="stSidebarCollapseButton"]:hover svg {
-        color: #002032 !important;
-        fill: #002032 !important;
-    }
-</style>
-"""
-st.markdown(custom_css, unsafe_allow_html=True)
+# (J'ai retiré le st.cache_data.clear() qui faisait planter l'appli)
 
 st.title("🏥 Suivi des Visites Médicales")
 
