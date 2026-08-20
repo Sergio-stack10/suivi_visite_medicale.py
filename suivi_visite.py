@@ -215,6 +215,29 @@ custom_css = """
         background-color: transparent !important; /* Rend le fond transparent */
         padding: 10px 0 !important;
     }
+        /* --- Personnalisation du bouton Réduire/Afficher de la barre latérale --- */
+    
+    /* Cible le fond et la bordure du bouton */
+    [data-testid="stSidebarCollapseButton"] {
+        background-color: #003D5B !important;
+        border: 2px solid #25E2CC !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Cible l'icône (la flèche ou la croix) à l'intérieur du bouton */
+    [data-testid="stSidebarCollapseButton"] svg {
+        color: #25E2CC !important;
+        fill: #25E2CC !important;
+    }
+
+    /* Effet au survol de la souris */
+    [data-testid="stSidebarCollapseButton"]:hover {
+        background-color: #25E2CC !important;
+    }
+    [data-testid="stSidebarCollapseButton"]:hover svg {
+        color: #002032 !important;
+        fill: #002032 !important;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
