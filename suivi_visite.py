@@ -215,16 +215,17 @@ custom_css = """
         background-color: transparent !important; /* Rend le fond transparent */
         padding: 10px 0 !important;
     }
-        /* --- Personnalisation du bouton Réduire/Afficher de la barre latérale --- */
+    /* --- Personnalisation du bouton Réduire/Afficher de la barre latérale --- */
     
-    /* Cible le fond et la bordure du bouton */
+    /* Forcer le bouton à rester toujours visible et coloré */
     [data-testid="stSidebarCollapseButton"] {
+        opacity: 1 !important; /* Force la visibilité en permanence */
         background-color: #003D5B !important;
         border: 2px solid #25E2CC !important;
         border-radius: 8px !important;
     }
     
-    /* Cible l'icône (la flèche ou la croix) à l'intérieur du bouton */
+    /* Couleur de l'icône (la flèche) */
     [data-testid="stSidebarCollapseButton"] svg {
         color: #25E2CC !important;
         fill: #25E2CC !important;
