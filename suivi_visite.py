@@ -111,6 +111,65 @@ with st.sidebar:
 # (J'ai retiré le st.cache_data.clear() qui faisait planter l'appli)
 
 st.title("🏥 Suivi des Visites Médicales")
+# --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
+custom_css = """
+<style>
+    .stApp, .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+    html, body, .stApp { font-size: 14px; }
+    h1 { color: #25E2CC !important; font-weight: 600; padding-bottom: 10px; border-bottom: 2px solid #003D5B; }
+    section[data-testid="stSidebar"] { background-color: #002032; width: 260px !important; }
+    section[data-testid="stSidebar"] > div:first-child { width: 260px !important; padding-top: 20px; }
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"], 
+    section[data-testid="stSidebar"] label { font-size: 13px !important; color: #747474 !important; }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #A8F3EB !important; font-size: 15px !important; }
+    .stTabs [data-baseweb="tab-list"] { gap: 15px; }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #FFFFFF; color: #2A2B2C; border: 2px solid #F2F2F2; border-radius: 8px;
+        padding: 12px 20px; clip-path: polygon(15px 0%, 100% 0%, 100% 100%, 15px 100%, 0% 50%);
+        font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover { border-color: #25E2CC; background-color: #E9FCFA; }
+    .stTabs [aria-selected="true"] { background-color: #003D5B !important; color: #FFFFFF !important; box-shadow: 0 4px 12px rgba(0, 115, 128, 0.3); }
+    .stTabs [data-baseweb="tab-highlight"] { background-color: transparent !important; }
+    .stTabs [data-baseweb="tab-border-bottom"] { display: none; }
+    div.stButton > button {
+        background-color: #003D5B; color: #FFFFFF; border: 2px solid #003D5B; padding: 10px 25px;
+        border-radius: 25px; font-weight: bold; box-shadow: 0 4px 8px rgba(0, 61, 91, 0.2); transition: all 0.3s ease;
+    }
+    div.stButton > button:hover { background-color: #FBCA18; color: #002032; border-color: #FBCA18; transform: translateY(-2px); }
+    .stDownloadButton > button { background-color: #25E2CC !important; color: #002032 !important; border: 2px solid #25E2CC !important; border-radius: 8px !important; font-weight: bold; }
+    .stDownloadButton > button:hover { background-color: #007380 !important; color: #FFFFFF !important; border-color: #007380 !important; }
+    .stAlert [data-testid="stAlertContent"] { border-left: 5px solid #25E2CC; }
+    [data-testid="stMetricValue"] { color: #007380; font-weight: bold; }
+    
+    /* Bande fixe en bas de page */
+    .footer-fix {
+        position: fixed !important; left: 0 !important; bottom: 0 !important; width: 100% !important;
+        background-color: #002032 !important; color: #FFFFFF !important; text-align: left !important;
+        font-size: 10px !important; padding: 5px 15px !important; z-index: 999999 !important; border-top: 1px solid #F2F2F2 !important;
+    }
+    
+    /* Figer le filtre multiselect en haut de la page */
+    div[data-testid="stMultiSelect"] {
+        position: sticky !important; top: 0 !important; z-index: 999 !important;
+        background-color: transparent !important; padding: 10px 0 !important;
+    }
+    
+    /* --- Personnalisation du bouton Réduire/Afficher de la barre latérale --- */
+    [data-testid="stSidebarCollapseButton"] {
+        opacity: 1 !important; background-color: #003D5B !important; border: 2px solid #25E2CC !important; border-radius: 8px !important;
+    }
+    [data-testid="stSidebarCollapseButton"] svg { color: #25E2CC !important; fill: #25E2CC !important; }
+    [data-testid="stSidebarCollapseButton"]:hover { background-color: #25E2CC !important; }
+    [data-testid="stSidebarCollapseButton"]:hover svg { color: #002032 !important; fill: #002032 !important; }
+
+    /* Masquer les logos Streamlit Cloud sans casser le reste */
+    .stDeployButton { display: none !important; }
+    [data-testid="appCreatorAvatar"] { display: none !important; }
+    a[href*="streamlit.io/cloud"] { display: none !important; }
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
 
 # --- DICTIONNAIRE DE MAPPAGE DES PROJETS ---
 def get_mapped_project(projet):
