@@ -239,6 +239,13 @@ custom_css = """
         color: #002032 !important;
         fill: #002032 !important;
     }
+        /* Masquer les boutons Streamlit Cloud (Manage app, Déploiement, etc.) */
+    [data-testid="stToolbar"] {display: none !important;}
+    .stDeployButton {display: none !important;}
+    
+    /* Masquer le menu hamburger et le footer Streamlit */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
