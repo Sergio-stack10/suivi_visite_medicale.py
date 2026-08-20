@@ -239,27 +239,7 @@ custom_css = """
         color: #002032 !important;
         fill: #002032 !important;
     }
-        /* Masquer le menu hamburger (3 lignes) et le menu "Manage app" */
-    #MainMenu {visibility: hidden !important;}
-    
-    /* Masquer la barre d'outils de Streamlit Cloud (GitHub, Cloud, boutons de déploiement) */
-    [data-testid="stHeaderActionElements"],
-    [data-testid="stHeader"] [data-testid="stToolbar"],
-    .stDeployButton,
-    [data-testid="stLogo"],
-    [data-testid="appCreatorAvatar"] {
-        display: none !important;
-    }
-    
-    /* Masquer les liens spécifiques vers GitHub et Streamlit Cloud */
-    a[href*="github.com"],
-    a[href*="streamlit.io/cloud"],
-    div[class*="_link_"] {
-        display: none !important;
-    }
-    
-    /* Masquer le texte "Made with Streamlit" en bas */
-    footer {visibility: hidden !important;}
+
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
