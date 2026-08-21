@@ -211,7 +211,7 @@ def get_mapped_project(projet):
         'Footovision': 'FOOTOVISION', 'Sika Webhelp': 'SIKA WEBHELP OD',
         'Tuffy Wall': 'TUFFY WALL', 'DOMISERVE': 'DOMISERVE',
         '22409 - Pnp': 'PNP TMM', '22432 - Other': 'OTHER', '22409 - Other': 'OTHER',
-        '21317 - Legalplace': 'LEGALPLACE', '16679 - 'Gexel': 'GEXEL',
+        '21317 - Legalplace': 'LEGALPLACE', '16679 - Gexel': 'GEXEL',
         '2921 - Originenergy': 'ORIGINENERGY', '23330 - Opexother': 'OPEXOTHER',
         '23776 - Other': 'OTHER', '14309 - Bytedance': 'BYTEDANCE',
         '4125 - Ceaa': 'CEAA', '24818 - Power Fleet': 'POWERFLEET',
