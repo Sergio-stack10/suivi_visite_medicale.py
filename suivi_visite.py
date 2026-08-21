@@ -326,11 +326,11 @@ if 'history_data' not in st.session_state:
     
 if st.session_state.history_data.get('medical_list') is not None:
     med_list = st.session_state.history_data['medical_list']
-    for col in ['Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Payroll ID']:
+    for col in ['Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Payroll ID', 'Créneau Visite']:
         if col not in med_list.columns:
             if col == 'Ancienneté_num':
                 med_list[col] = 0
-            elif col == 'Date d\'embauche':
+            elif col == 'Date d\'embauche' or col == 'Créneau Visite':
                 med_list[col] = pd.NaT
             else:
                 med_list[col] = ''
@@ -580,13 +580,14 @@ def parse_liste_visite(file):
         
         df['Statut Visite'] = 'Non Planifié'
         df['Date Visite'] = pd.NaT
+        df['Créneau Visite'] = pd.NaT # <-- Nouvelle colonne
         df['Shift Début'] = ''
         df['Shift Fin'] = ''
         df['Heure Départ'] = pd.NaT
         df['Heure Retour'] = pd.NaT
         df['Commentaire'] = ''
         
-        final_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Shift Début', 'Shift Fin', 'Heure Départ', 'Heure Retour', 'Commentaire']
+        final_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin', 'Heure Départ', 'Heure Retour', 'Commentaire']
         return df[final_cols].drop_duplicates(subset=['WORKDAY ID'])
     except Exception as e:
         st.error(f"Erreur lors de la lecture du fichier Visite: {e}")
@@ -770,11 +771,18 @@ with tab2:
             with st.popover("🗑️ Zone de danger", use_container_width=True):
                 st.warning("Cette action supprimera définitivement la liste et tout l'historique de suivi.")
                 confirm_p2 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p2")
-                if st.button("Supprimer ALL", disabled=not confirm_p2, key="btn_del_p2", use_container_width=True):
-                    st.session_state.history_data['medical_list'] = None
-                    save_history()
-                    st.success("Liste supprimée avec succès.")
-                    st.rerun()
+                if st.button("Supprimer ALL", disabled=not confirm_p4, key="btn_del_p4", use_container_width=True):
+                            mask = medical_list['Statut Visite'] == 'Planifié'
+                            medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
+                            medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT # <-- AJOUT
+                            medical_list.loc[mask, 'Heure Départ'] = pd.NaT
+                            medical_list.loc[mask, 'Heure Retour'] = pd.NaT
+                            medical_list.loc[mask, 'Commentaire'] = ''
+                            st.session_state.history_data['medical_list'] = medical_list
+                            save_history()
+                            st.success("Toutes les planifications ont été supprimées.")
+                            st.rerun()
         else:
             st.write("🔒 Consultation")
             
@@ -872,7 +880,6 @@ with tab3:
                 
             if submitted:
                 total_planned = 0
-                errors = []
                 
                 for config in plan_configs:
                     if not config['actif']:
@@ -907,29 +914,61 @@ with tab3:
                     else:
                         working_df = working_df.sort_values(by=['Ancienneté_num'], ascending=False)
                     
-                    is_amazon = working_df['Projet'].astype(str).str.contains('AMAZON', case=False, na=False)
-                    df_amazon = working_df[is_amazon]
-                    df_others = working_df[~is_amazon]
+                    is_river = working_df['Projet'].astype(str).str.contains('RIVER', case=False, na=False)
+                    df_river = working_df[is_river]
+                    df_others = working_df[~is_river]
                     
-                    picked_amazon = df_amazon.head(config['qty_amazon'])
-                    picked_others = df_others.head(config['qty_others'])
-                    final_picks = pd.concat([picked_amazon, picked_others])
+                    # --- NOUVELLE LOGIQUE DE CRÉNEAUX ---
+                    # Génération des créneaux de 30 minutes
+                    slots = []
+                    current_slot_dt = datetime.datetime.combine(date_obj, config['debut'])
+                    end_slot_dt = datetime.datetime.combine(date_obj, config['fin'])
+                    while current_slot_dt <= end_slot_dt:
+                        slots.append(current_slot_dt.time())
+                        current_slot_dt += datetime.timedelta(minutes=30)
+                        
+                    slot_counts = {slot: 0 for slot in slots}
                     
-                    if not final_picks.empty:
-                        ids_to_update = final_picks['WORKDAY ID'].tolist()
-                        medical_list.loc[medical_list['WORKDAY ID'].isin(ids_to_update), 'Statut Visite'] = 'Planifié'
-                        medical_list.loc[medical_list['WORKDAY ID'].isin(ids_to_update), 'Date Visite'] = pd.to_datetime(date_obj)
-                        total_planned += len(final_picks)
+                    def assign_slots(df_group, target_qty):
+                        picked_count = 0
+                        available_df = df_group.copy()
+                        for slot in slots:
+                            if picked_count >= target_qty: break
+                            while slot_counts[slot] < 4:
+                                found_idx = None
+                                for idx, row in available_df.iterrows():
+                                    shift_d = get_time_obj(row[de_col])
+                                    shift_f = get_time_obj(row[a_col])
+                                    # L'heure du créneau doit être comprise dans le shift du collaborateur
+                                    if shift_d and shift_f and shift_d <= slot and shift_f >= slot:
+                                        found_idx = idx
+                                        break
+                                
+                                if found_idx is not None:
+                                    wid = available_df.loc[found_idx, 'WORKDAY ID']
+                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Statut Visite'] = 'Planifié'
+                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Date Visite'] = pd.to_datetime(date_obj)
+                                    slot_dt = datetime.datetime.combine(date_obj, slot)
+                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Créneau Visite'] = pd.to_datetime(slot_dt)
+                                    available_df = available_df.drop(found_idx)
+                                    slot_counts[slot] += 1
+                                    picked_count += 1
+                                    if picked_count >= target_qty: break
+                                else:
+                                    break
+                        return picked_count
+
+                    picked_river = assign_slots(df_river, config.get('qty_river', 0))
+                    picked_others = assign_slots(df_others, config['qty_others'])
+                    total_planned += picked_river + picked_others
                         
                 st.session_state.history_data['medical_list'] = medical_list
                 save_history()
                 
-                if errors:
-                    for err in errors: st.warning(err)
                 if total_planned > 0:
                     st.success(f"✅ {total_planned} collaborateurs planifiés au total sur les jours actifs !")
-                elif not errors:
-                    st.warning("Aucun collaborateur ne correspond aux critères pour les jours actifs.")
+                else:
+                    st.warning("Aucun collaborateur ne correspond aux critères pour les jours actifs (Créneaux ou Shifts incompatibles).")
             
             if role != "admin":
                 st.info("🔒 Action réservée aux administrateurs.")
@@ -985,8 +1024,10 @@ with tab3:
             planned_this_week = enrich_shifts(planned_this_week, st.session_state.history_data['plannings'])
             
             if not planned_this_week.empty:
-                display_planned = planned_this_week[['WORKDAY ID', 'Payroll ID', 'Nom', 'Projet', 'Date Visite', 'Shift Début', 'Shift Fin', 'Priorité Visite']].copy()
+            if not planned_this_week.empty:
+                display_planned = planned_this_week[['WORKDAY ID', 'Payroll ID', 'Nom', 'Projet', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin', 'Priorité Visite']].copy()
                 display_planned['Date Visite'] = display_planned['Date Visite'].dt.strftime('%d/%m/%Y')
+                display_planned['Créneau Visite'] = pd.to_datetime(display_planned['Créneau Visite'], errors='coerce').dt.strftime('%H:%M').fillna('')
                 
                 st.dataframe(display_planned, use_container_width=True, height=300)
                 
@@ -999,6 +1040,7 @@ with tab3:
                                    (pd.to_datetime(medical_list['Date Visite'], errors='coerce') <= pd.Timestamp(end_date))
                             medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                             medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT # <-- AJOUT
                             medical_list.loc[mask, 'Heure Départ'] = pd.NaT
                             medical_list.loc[mask, 'Heure Retour'] = pd.NaT
                             medical_list.loc[mask, 'Commentaire'] = ''
@@ -1016,6 +1058,7 @@ with tab3:
                             mask = medical_list['WORKDAY ID'].isin(ids_to_unplan)
                             medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                             medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT # <-- AJOUT
                             medical_list.loc[mask, 'Heure Départ'] = pd.NaT
                             medical_list.loc[mask, 'Heure Retour'] = pd.NaT
                             medical_list.loc[mask, 'Commentaire'] = ''
@@ -1035,9 +1078,10 @@ with tab4:
         
         if not planned_list.empty:
             planned_list = enrich_shifts(planned_list, st.session_state.history_data['plannings'])
-            show_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Shift Début', 'Shift Fin']
+            show_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin']
             planned_list['Date Visite'] = pd.to_datetime(planned_list['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
             planned_list['Date d\'embauche'] = pd.to_datetime(planned_list['Date d\'embauche'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
+            planned_list['Créneau Visite'] = pd.to_datetime(planned_list['Créneau Visite'], errors='coerce').dt.strftime('%H:%M').fillna('')
             
             col_title, col_export, col_delete = st.columns([4, 2, 2])
             with col_title:
@@ -1102,7 +1146,7 @@ with tab5:
         st.write("")
         if role == "admin":
             if st.session_state.history_data.get('rta_data') is not None:
-                if st.button("🗑️ Supprimer RTA", key="btn_del_p5", use_container_width=True):
+                if st.button("🗑️ Supprimer Suivi", key="btn_del_p5", use_container_width=True):
                     st.session_state.history_data['rta_data'] = None
                     save_history()
                     st.success("Données RTA supprimées.")
