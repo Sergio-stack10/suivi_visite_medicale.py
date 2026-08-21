@@ -1014,21 +1014,50 @@ with tab4:
     medical_list = st.session_state.history_data.get('medical_list')
     
     if medical_list is not None:
+        # Filtrer toutes les visites planifiées (toutes semaines confondues)
         planned_list = medical_list[medical_list['Statut Visite'] == 'Planifié'].copy()
         
-        show_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite']
-        planned_list['Date Visite'] = pd.to_datetime(planned_list['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
-        planned_list['Date d\'embauche'] = pd.to_datetime(planned_list['Date d\'embauche'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
-        
-        st.dataframe(planned_list[show_cols], use_container_width=True, height=600)
-        
-        st.markdown("---")
-        st.download_button(
-            label="📥 Exporter la planification globale (Excel)",
-            data=to_excel(planned_list[show_cols]),
-            file_name="planification_globale.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        if not planned_list.empty:
+            # Récupération des Shifts (Début et Fin) depuis l'historique des plannings
+            planned_list = enrich_shifts(planned_list, st.session_state.history_data['plannings'])
+            
+            # Formatage des dates pour l'affichage
+            show_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Shift Début', 'Shift Fin']
+            planned_list['Date Visite'] = pd.to_datetime(planned_list['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
+            planned_list['Date d\'embauche'] = pd.to_datetime(planned_list['Date d\'embauche'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
+            
+            st.dataframe(planned_list[show_cols], use_container_width=True, height=600)
+            
+            st.markdown("---")
+            col_e, col_d = st.columns([3, 1])
+            with col_e:
+                st.download_button(
+                    label="📥 Exporter la planification globale (Excel)",
+                    data=to_excel(planned_list[show_cols]),
+                    file_name="planification_globale.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            with col_d:
+                if role == "admin":
+                    with st.expander("⚠️ Zone de danger"):
+                        st.warning("Cette action supprimera DÉFINITIVEMENT TOUTES les planifications de visites de TOUTES les semaines.")
+                        confirm_p4 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p4")
+                        if st.button("🗑️ Supprimer ALL", disabled=not confirm_p4, key="btn_del_p4"):
+                            # Remise à zéro de toutes les planifications
+                            mask = medical_list['Statut Visite'] == 'Planifié'
+                            medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
+                            medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                            medical_list.loc[mask, 'Heure Départ'] = pd.NaT
+                            medical_list.loc[mask, 'Heure Retour'] = pd.NaT
+                            medical_list.loc[mask, 'Commentaire'] = ''
+                            st.session_state.history_data['medical_list'] = medical_list
+                            save_history()
+                            st.success("Toutes les planifications ont été supprimées avec succès.")
+                            st.rerun()
+                else:
+                    st.write("🔒 Consultation")
+        else:
+            st.info("Aucune visite planifiée pour le moment.")
     else:
         st.warning("Aucune donnée disponible. Importez la liste (Page 2).")
 
