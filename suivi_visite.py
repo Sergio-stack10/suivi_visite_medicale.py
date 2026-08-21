@@ -837,7 +837,7 @@ with tab3:
                         actif = st.checkbox(f"Activer", value=True, key=f"actif_{i}")
                         
                         d = monday + datetime.timedelta(days=i)
-                        st.date_input("Date", d, key=f"date_{i}", label_visibility="collapsed", disabled=True)
+                        st.date_input("Date", d, key=f"date_{i}_{st.session_state.current_week}", label_visibility="collapsed", disabled=True)
                         
                         c1, c2 = st.columns(2)
                         with c1: t1 = st.time_input("Début", datetime.time(9, 0), key=f"t1_{i}")
@@ -1413,6 +1413,32 @@ with tab7:
             st.dataframe(top5_df[['WORKDAY ID', 'Nom Complet', 'Projet_Affichage', 'Heure Départ', 'Heure Retour', 'Durée']], use_container_width=True, hide_index=True)
         else:
             st.info("Aucune donnée de durée disponible pour le moment.")
+        
+        st.markdown("---")
+        
+        st.subheader("✅ Liste des visites effectuées")
+        
+        # Filtrer les visites effectuées (commentaire contenant "ok")
+        done_df = med_df[med_df['Commentaire'].astype(str).str.lower().str.contains('ok', na=False)].copy()
+        
+        if not done_df.empty:
+            # Création de la colonne Nom complet
+            done_df['Nom complet'] = done_df['Nom'].fillna('').astype(str) + ' ' + done_df['Prénom'].fillna('').astype(str)
+            
+            # S'assurer que les colonnes existent pour éviter les erreurs
+            if 'Payroll ID' not in done_df.columns:
+                done_df['Payroll ID'] = ''
+            if 'Projet' not in done_df.columns:
+                done_df['Projet'] = done_df['Projet_Affichage'] if 'Projet_Affichage' in done_df.columns else 'N/A'
+                
+            # Ajout de la nouvelle colonne Statut visite avec "Done"
+            done_df['Statut visite'] = 'Done'
+            
+            # Sélection et affichage des colonnes demandées
+            cols_to_show_done = ['WORKDAY ID', 'Payroll ID', 'Nom complet', 'Projet', 'Statut visite']
+            st.dataframe(done_df[cols_to_show_done], use_container_width=True, hide_index=True)
+        else:
+            st.info("Aucune visite effectuée (commentaire OK) pour le moment.")
         
         st.markdown("---")
         
