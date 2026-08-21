@@ -1010,7 +1010,6 @@ with tab3:
 
 # --- PAGE 4 : PLANIFICATION GLOBALE ---
 with tab4:
-    st.header("📋 Planning visite")
     medical_list = st.session_state.history_data.get('medical_list')
     
     if medical_list is not None:
@@ -1026,23 +1025,26 @@ with tab4:
             planned_list['Date Visite'] = pd.to_datetime(planned_list['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
             planned_list['Date d\'embauche'] = pd.to_datetime(planned_list['Date d\'embauche'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
             
-            st.dataframe(planned_list[show_cols], use_container_width=True, height=600)
-            
-            st.markdown("---")
-            col_e, col_d = st.columns([3, 1])
-            with col_e:
+            # --- MISE EN PAGE SUR LA MÊME LIGNE ---
+            col_title, col_export, col_delete = st.columns([4, 2, 2])
+            with col_title:
+                st.header("📋 Planning visite")
+            with col_export:
+                st.write("") # Petit espace vertical pour aligner avec le titre
                 st.download_button(
-                    label="📥 Exporter la planification globale (Excel)",
+                    label="📥 Exporter (Excel)",
                     data=to_excel(planned_list[show_cols]),
                     file_name="planification_globale.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
                 )
-            with col_d:
+            with col_delete:
+                st.write("") # Petit espace vertical pour aligner avec le titre
                 if role == "admin":
-                    with st.expander("⚠️ Zone de danger"):
+                    with st.popover("🗑️ Zone de danger", use_container_width=True):
                         st.warning("Cette action supprimera DÉFINITIVEMENT TOUTES les planifications de visites de TOUTES les semaines.")
                         confirm_p4 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p4")
-                        if st.button("🗑️ Supprimer ALL", disabled=not confirm_p4, key="btn_del_p4"):
+                        if st.button("🗑️ Supprimer ALL", disabled=not confirm_p4, key="btn_del_p4", use_container_width=True):
                             # Remise à zéro de toutes les planifications
                             mask = medical_list['Statut Visite'] == 'Planifié'
                             medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
@@ -1056,9 +1058,14 @@ with tab4:
                             st.rerun()
                 else:
                     st.write("🔒 Consultation")
+            
+            st.markdown("---")
+            st.dataframe(planned_list[show_cols], use_container_width=True, height=600)
         else:
+            st.header("📋 Planning visite")
             st.info("Aucune visite planifiée pour le moment.")
     else:
+        st.header("📋 Planning visite")
         st.warning("Aucune donnée disponible. Importez la liste (Page 2).")
 
 # --- PAGE 5 : IMPORT RTA & SUIVI ---
