@@ -32,15 +32,18 @@ def check_password():
     params = st.query_params
     if "token" in params:
         token = params["token"]
-        if token in token_store:
-            user_data = token_store[token]
-            st.session_state["password_correct"] = True
-            st.session_state["role"] = user_data["role"]
-            st.session_state["username"] = user_data["username"]
-            st.session_state["token"] = token
-            return True
-        else:
-            # Token invalide ou expiré, on le retire de l'URL
+        try:
+            if token in token_store:
+                user_data = token_store[token]
+                st.session_state["password_correct"] = True
+                st.session_state["role"] = user_data["role"]
+                st.session_state["username"] = user_data["username"]
+                st.session_state["token"] = token
+                return True
+            else:
+                # Token invalide ou expiré, on le retire de l'URL
+                st.query_params.clear()
+        except Exception:
             st.query_params.clear()
 
     # 3. Afficher le formulaire de connexion
@@ -114,7 +117,7 @@ st.title("🏥 Suivi des Visites Médicales")
 # --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
 custom_css = """
 <style>
-    .stApp, .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+    .stApp, .block-container { padding-top: 5rem !important; padding-bottom: 1rem !important; }
     html, body, .stApp { font-size: 14px; }
     h1 { color: #25E2CC !important; font-weight: 600; padding-bottom: 10px; border-bottom: 2px solid #003D5B; }
     section[data-testid="stSidebar"] { background-color: #002032; width: 260px !important; }
