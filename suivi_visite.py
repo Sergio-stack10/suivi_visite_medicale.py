@@ -652,27 +652,30 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 
 # --- PAGE 1 : REGROUPEMENT AVEC HISTORIQUE INTÉGRÉ ---
 with tab1:
-    st.header("Planning MC & River")
-    
     available_weeks = list(st.session_state.history_data['plannings'].keys())
-    if available_weeks:
-        available_weeks.sort()
-        col_w1, col_w2 = st.columns([3, 1])
-        with col_w1:
+    
+    col_h1, col_w1, col_w2 = st.columns([2, 3, 1])
+    with col_h1:
+        st.header("Planning MC & River")
+    with col_w1:
+        st.write("")
+        if available_weeks:
+            available_weeks.sort()
             st.session_state.current_week = st.selectbox("Semaine à afficher", available_weeks, key="p1_week_sel")
-        with col_w2:
-            st.write("") 
-            if role == "admin":
-                if st.button("🗑️ Supprimer cette semaine"):
+        else:
+            st.session_state.current_week = None
+            st.info("Aucune semaine chargée. Importez un planning ci-dessous.")
+    with col_w2:
+        st.write("")
+        if role == "admin":
+            if st.session_state.current_week:
+                if st.button("🗑️ Supprimer semaine", key="btn_del_p1", use_container_width=True):
                     del st.session_state.history_data['plannings'][st.session_state.current_week]
                     save_history()
                     st.session_state.current_week = None
                     st.rerun()
-            else:
-                st.write("🔒 Consultation")
-    else:
-        st.session_state.current_week = None
-        st.info("Aucune semaine chargée. Importez un planning ci-dessous.")
+        else:
+            st.write("🔒 Consultation")
         
     st.markdown("---")
     
@@ -740,24 +743,41 @@ with tab1:
 
 # --- PAGE 2 : LISTE DE COLLABORATEURS ---
 with tab2:
-    st.header("Liste des collaborateurs")
-    
-    if role == "admin":
-        if st.button("📥 Charger le fichier Planification Visite"):
-            if file_a_passer is not None:
-                with st.spinner("Lecture du fichier..."):
-                    medical_df = parse_liste_visite(file_a_passer)
-                    if medical_df is not None:
-                        st.session_state.history_data['medical_list'] = medical_df
-                        save_history()
-                        st.success(f"{len(medical_df)} collaborateurs chargés avec succès !")
-                        st.rerun()
-            else:
-                st.error("Veuillez importer le fichier PLANIFICATION VISITE SYSTEMATIQUE dans le menu de gauche.")
-    else:
-        st.info("🔒 Action réservée aux administrateurs.")
-            
     medical_list = st.session_state.history_data.get('medical_list')
+    
+    col_h2, col_imp2, col_del2 = st.columns([4, 2, 2])
+    with col_h2:
+        st.header("Liste des collaborateurs")
+    with col_imp2:
+        st.write("")
+        if role == "admin":
+            if st.button("📥 Charger fichier", key="btn_p2_load", use_container_width=True):
+                if file_a_passer is not None:
+                    with st.spinner("Lecture du fichier..."):
+                        medical_df = parse_liste_visite(file_a_passer)
+                        if medical_df is not None:
+                            st.session_state.history_data['medical_list'] = medical_df
+                            save_history()
+                            st.success(f"{len(medical_df)} collaborateurs chargés avec succès !")
+                            st.rerun()
+                else:
+                    st.error("Veuillez importer le fichier PLANIFICATION VISITE SYSTEMATIQUE dans le menu de gauche.")
+        else:
+            st.info("🔒 Admin")
+    with col_del2:
+        st.write("")
+        if role == "admin":
+            with st.popover("🗑️ Zone de danger", use_container_width=True):
+                st.warning("Cette action supprimera définitivement la liste et tout l'historique de suivi.")
+                confirm_p2 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p2")
+                if st.button("Supprimer ALL", disabled=not confirm_p2, key="btn_del_p2", use_container_width=True):
+                    st.session_state.history_data['medical_list'] = None
+                    save_history()
+                    st.success("Liste supprimée avec succès.")
+                    st.rerun()
+        else:
+            st.write("🔒 Consultation")
+            
     if medical_list is not None:
         st.markdown("---")
         st.subheader("Liste complète")
@@ -781,31 +801,31 @@ with tab2:
         st.dataframe(display_p2[export_cols], use_container_width=True, height=500)
         
         st.markdown("---")
-        col_e, col_d = st.columns([3, 1])
-        with col_e:
-            st.download_button(
-                label="📥 Exporter la liste (Excel)",
-                data=to_excel(display_p2[export_cols]),
-                file_name="export_liste_visite.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        with col_d:
-            if role == "admin":
-                with st.expander("⚠️ Zone de danger"):
-                    st.warning("Cette action supprimera définitivement la liste et tout l'historique de suivi.")
-                    confirm_p2 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p2")
-                    if st.button("🗑️ Supprimer ALL", disabled=not confirm_p2, key="btn_del_p2"):
-                        st.session_state.history_data['medical_list'] = None
-                        save_history()
-                        st.success("Liste supprimée avec succès.")
-                        st.rerun()
+        st.download_button(
+            label="📥 Exporter la liste (Excel)",
+            data=to_excel(display_p2[export_cols]),
+            file_name="export_liste_visite.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     else:
         st.warning("Aucune liste chargée.")
 
 # --- PAGE 3 : PLANIFICATION SUR 5 JOURS ET GESTION ---
 with tab3:
-    st.header("📅 Planification automatisée des visites (5 jours)")
     medical_list = st.session_state.history_data.get('medical_list')
+    
+    col_h3, col_w3 = st.columns([4, 2])
+    with col_h3:
+        st.header("📅 Planification automatisée des visites (5 jours)")
+    with col_w3:
+        st.write("")
+        if medical_list is not None:
+            available_weeks = list(st.session_state.history_data['plannings'].keys())
+            if available_weeks:
+                available_weeks.sort()
+                st.session_state.current_week = st.selectbox("Semaine à planifier", available_weeks, key="p3_week_sel")
+            else:
+                st.session_state.current_week = None
     
     if medical_list is None:
         st.warning("Veuillez charger la liste des visiteurs (Page 2).")
@@ -814,8 +834,6 @@ with tab3:
         if not available_weeks:
             st.warning("Veuillez importer un planning sur la Page 1.")
         else:
-            available_weeks.sort()
-            st.session_state.current_week = st.selectbox("Semaine à planifier", available_weeks, key="p3_week_sel")
             current_planning = st.session_state.history_data['plannings'].get(st.session_state.current_week)
             
             dates_map = get_dates_from_week(st.session_state.current_week)
@@ -1013,39 +1031,30 @@ with tab4:
     medical_list = st.session_state.history_data.get('medical_list')
     
     if medical_list is not None:
-        # Filtrer toutes les visites planifiées (toutes semaines confondues)
         planned_list = medical_list[medical_list['Statut Visite'] == 'Planifié'].copy()
         
         if not planned_list.empty:
-            # Récupération des Shifts (Début et Fin) depuis l'historique des plannings
             planned_list = enrich_shifts(planned_list, st.session_state.history_data['plannings'])
-            
-            # Formatage des dates pour l'affichage
             show_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Shift Début', 'Shift Fin']
             planned_list['Date Visite'] = pd.to_datetime(planned_list['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
             planned_list['Date d\'embauche'] = pd.to_datetime(planned_list['Date d\'embauche'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
             
-            # --- MISE EN PAGE SUR LA MÊME LIGNE ---
             col_title, col_export, col_delete = st.columns([4, 2, 2])
             with col_title:
                 st.header("📋 Planning visite")
             with col_export:
-                st.write("") # Petit espace vertical pour aligner avec le titre
+                st.write("")
                 st.download_button(
-                    label="📥 Exporter (Excel)",
-                    data=to_excel(planned_list[show_cols]),
-                    file_name="planification_globale.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
+                    label="📥 Exporter (Excel)", data=to_excel(planned_list[show_cols]),
+                    file_name="planification_globale.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True
                 )
             with col_delete:
-                st.write("") # Petit espace vertical pour aligner avec le titre
+                st.write("")
                 if role == "admin":
                     with st.popover("🗑️ Zone de danger", use_container_width=True):
-                        st.warning("Cette action supprimera DÉFINITIVEMENT TOUTES les planifications de visites de TOUTES les semaines.")
+                        st.warning("Supprime DÉFINITIVEMENT TOUTES les planifications de TOUTES les semaines.")
                         confirm_p4 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p4")
-                        if st.button("🗑️ Supprimer ALL", disabled=not confirm_p4, key="btn_del_p4", use_container_width=True):
-                            # Remise à zéro de toutes les planifications
+                        if st.button("Supprimer ALL", disabled=not confirm_p4, key="btn_del_p4", use_container_width=True):
                             mask = medical_list['Statut Visite'] == 'Planifié'
                             medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                             medical_list.loc[mask, 'Date Visite'] = pd.NaT
@@ -1054,7 +1063,7 @@ with tab4:
                             medical_list.loc[mask, 'Commentaire'] = ''
                             st.session_state.history_data['medical_list'] = medical_list
                             save_history()
-                            st.success("Toutes les planifications ont été supprimées avec succès.")
+                            st.success("Toutes les planifications ont été supprimées.")
                             st.rerun()
                 else:
                     st.write("🔒 Consultation")
@@ -1070,14 +1079,13 @@ with tab4:
 
 # --- PAGE 5 : IMPORT RTA & SUIVI ---
 with tab5:
-    st.header("📥 Import du fichier Suivi")
-    
-    if role == "admin":
-        st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
-        
-        col_imp, col_del = st.columns([3, 1])
-        with col_imp:
-            if st.button("📥 Importer le fichier RTA"):
+    col_h5, col_imp5, col_del5 = st.columns([4, 2, 2])
+    with col_h5:
+        st.header("📥 Import du fichier Suivi")
+    with col_imp5:
+        st.write("")
+        if role == "admin":
+            if st.button("📥 Importer RTA", key="btn_imp_p5", use_container_width=True):
                 if file_rta is not None:
                     with st.spinner("Mise à jour des données..."):
                         rta_df = parse_rta_file(file_rta)
@@ -1088,16 +1096,25 @@ with tab5:
                             st.rerun()
                 else:
                     st.error("Veuillez importer le fichier RTA dans le menu de gauche.")
-        with col_del:
+        else:
+            st.info("🔒 Admin")
+    with col_del5:
+        st.write("")
+        if role == "admin":
             if st.session_state.history_data.get('rta_data') is not None:
-                if st.button("🗑️ Supprimer RTA"):
+                if st.button("🗑️ Supprimer RTA", key="btn_del_p5", use_container_width=True):
                     st.session_state.history_data['rta_data'] = None
                     save_history()
                     st.success("Données RTA supprimées.")
                     st.rerun()
+        else:
+            st.write("🔒 Consultation")
+            
+    st.markdown("---")
+    
+    if role == "admin":
+        st.markdown("Importez le fichier rempli par les RTA (feuille 'Suivi'). Les données s'afficheront ci-dessous et alimenteront le Dashboard (Page 7).")
         st.markdown("---")
-    else:
-        st.info("🔒 Action réservée aux administrateurs.")
     
     st.subheader("Données de la feuille 'Suivi'")
     
@@ -1106,10 +1123,7 @@ with tab5:
         display_rta = rta_data.copy()
         
         display_rta.columns = [str(c).strip() for c in display_rta.columns]
-        rename_dict = {
-            'PROJET': 'Projet',
-            'COMMENTAIRES': 'Commentaire'
-        }
+        rename_dict = { 'PROJET': 'Projet', 'COMMENTAIRES': 'Commentaire' }
         display_rta = display_rta.rename(columns={k: v for k, v in rename_dict.items() if k in display_rta.columns})
         
         if 'Nom' in display_rta.columns and 'Prénom' in display_rta.columns:
@@ -1146,11 +1160,12 @@ with tab5:
 
 # --- PAGE 6 : ABSENCES ---
 with tab6:
-    st.header("🚫 Suivi des Absences")
-    
-    col_refresh_6, _ = st.columns([1, 4])
-    with col_refresh_6:
-        if st.button("🔄 Actualiser", key="refresh_p6"):
+    col_h6, col_r6 = st.columns([5, 1])
+    with col_h6:
+        st.header("🚫 Suivi des Absences")
+    with col_r6:
+        st.write("")
+        if st.button("🔄 Actualiser", key="refresh_p6", use_container_width=True):
             st.rerun()
             
     rta_data = st.session_state.history_data.get('rta_data')
@@ -1180,21 +1195,20 @@ with tab6:
         
         st.markdown("---")
         st.download_button(
-            label="📥 Exporter les absences (Excel)",
-            data=to_excel(abs_df[show_cols]),
-            file_name="absences_visites.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            label="📥 Exporter les absences (Excel)", data=to_excel(abs_df[show_cols]),
+            file_name="absences_visites.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     else:
         st.warning("Aucune donnée disponible. Veuillez importer le fichier RTA (Page 5).")
 
 # --- PAGE 7 : DASHBOARD & EXTRACTIONS ---
 with tab7:
-    st.header("État d'avancement et extractions")
-    
-    col_refresh_7, _ = st.columns([1, 4])
-    with col_refresh_7:
-        if st.button("🔄 Actualiser", key="refresh_p7"):
+    col_h7, col_r7 = st.columns([5, 1])
+    with col_h7:
+        st.header("État d'avancement et extractions")
+    with col_r7:
+        st.write("")
+        if st.button("🔄 Actualiser", key="refresh_p7", use_container_width=True):
             st.rerun()
             
     rta_data = st.session_state.history_data.get('rta_data')
