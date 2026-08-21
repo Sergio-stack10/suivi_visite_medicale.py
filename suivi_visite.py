@@ -18,17 +18,14 @@ st.set_page_config(page_title="Suivi Visites Médicales", page_icon="🏥", layo
 # --- SYSTÈME D'AUTHENTIFICATION ROBUSTE ---
 @st.cache_resource
 def get_token_store():
-    # Dictionnaire en mémoire partagée sur le serveur pour stocker les sessions actives
     return {}
 
 def check_password():
     token_store = get_token_store()
 
-    # 1. Vérifier si déjà connecté via session_state
     if st.session_state.get("password_correct"):
         return True
 
-    # 2. Vérifier si on a un token dans l'URL (après un refresh F5)
     params = st.query_params
     if "token" in params:
         token = params["token"]
@@ -41,12 +38,10 @@ def check_password():
                 st.session_state["token"] = token
                 return True
             else:
-                # Token invalide ou expiré, on le retire de l'URL
                 st.query_params.clear()
         except Exception:
             st.query_params.clear()
 
-    # 3. Afficher le formulaire de connexion
     def password_entered():
         user = st.session_state["username"]
         pwd = st.session_state["password"]
@@ -58,8 +53,6 @@ def check_password():
             st.session_state["password_correct"] = True
             st.session_state["role"] = "admin"
             if "password" in st.session_state: del st.session_state["password"]
-            
-            # Création du token de session
             token = str(uuid.uuid4())
             token_store[token] = {"username": user, "role": "admin"}
             st.session_state["token"] = token
@@ -69,8 +62,6 @@ def check_password():
             st.session_state["password_correct"] = True
             st.session_state["role"] = "consultation"
             if "password" in st.session_state: del st.session_state["password"]
-            
-            # Création du token de session
             token = str(uuid.uuid4())
             token_store[token] = {"username": user, "role": "consultation"}
             st.session_state["token"] = token
@@ -100,20 +91,15 @@ with st.sidebar:
         token_store = get_token_store()
         token = st.session_state.get("token")
         if token and token in token_store:
-            del token_store[token] # Supprime la session du serveur
-        
-        # Nettoyage complet de la session locale
+            del token_store[token]
         for key in list(st.session_state.keys()):
             del st.session_state[key]
-        
-        # Nettoyage de l'URL
         st.query_params.clear()
         st.rerun()
     st.markdown("---")
 
-# (J'ai retiré le st.cache_data.clear() qui faisait planter l'appli)
-
 st.title("🏥 Suivi des Visites Médicales")
+
 # --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
 custom_css = """
 <style>
@@ -145,20 +131,17 @@ custom_css = """
     .stAlert [data-testid="stAlertContent"] { border-left: 5px solid #25E2CC; }
     [data-testid="stMetricValue"] { color: #007380; font-weight: bold; }
     
-    /* Bande fixe en bas de page */
     .footer-fix {
         position: fixed !important; left: 0 !important; bottom: 0 !important; width: 100% !important;
         background-color: #002032 !important; color: #FFFFFF !important; text-align: left !important;
         font-size: 10px !important; padding: 5px 15px !important; z-index: 999999 !important; border-top: 1px solid #F2F2F2 !important;
     }
     
-    /* Figer le filtre multiselect en haut de la page */
     div[data-testid="stMultiSelect"] {
         position: sticky !important; top: 0 !important; z-index: 999 !important;
         background-color: transparent !important; padding: 10px 0 !important;
     }
     
-    /* --- Personnalisation du bouton Réduire/Afficher de la barre latérale --- */
     [data-testid="stSidebarCollapseButton"] {
         opacity: 1 !important; background-color: #003D5B !important; border: 2px solid #25E2CC !important; border-radius: 8px !important;
     }
@@ -166,13 +149,10 @@ custom_css = """
     [data-testid="stSidebarCollapseButton"]:hover { background-color: #25E2CC !important; }
     [data-testid="stSidebarCollapseButton"]:hover svg { color: #002032 !important; fill: #002032 !important; }
 
-    /* Masquer les logos Streamlit Cloud sans casser le reste */
     .stDeployButton { display: none !important; }
     [data-testid="appCreatorAvatar"] { display: none !important; }
     a[href*="streamlit.io/cloud"] { display: none !important; }
     
-        /* Masquer UNIQUEMENT les boutons Share, Crayon, Étoile et Chat en haut à droite */
-    /* On garde intacts le menu principal (⋮) et la barre latérale */
     [data-testid="stHeaderActionElements"] a[href*="github.com"],
     [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
     [data-testid="stHeaderActionElements"] .stGitHubStar,
@@ -231,7 +211,7 @@ def get_mapped_project(projet):
         'Footovision': 'FOOTOVISION', 'Sika Webhelp': 'SIKA WEBHELP OD',
         'Tuffy Wall': 'TUFFY WALL', 'DOMISERVE': 'DOMISERVE',
         '22409 - Pnp': 'PNP TMM', '22432 - Other': 'OTHER', '22409 - Other': 'OTHER',
-        '21317 - Legalplace': 'LEGALPLACE', '16679 - Gexel': 'GEXEL',
+        '21317 - Legalplace': 'LEGALPLACE', '16679 - 'Gexel': 'GEXEL',
         '2921 - Originenergy': 'ORIGINENERGY', '23330 - Opexother': 'OPEXOTHER',
         '23776 - Other': 'OTHER', '14309 - Bytedance': 'BYTEDANCE',
         '4125 - Ceaa': 'CEAA', '24818 - Power Fleet': 'POWERFLEET',
@@ -261,8 +241,6 @@ with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
 jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 # --- SYSTÈME D'HISTORIQUE PERSISTANT ---
-HISTORY_FILE = "medical_tracking.pkl"
-
 def get_mongo_client():
     mongo_uri = st.secrets.get("MONGO_URI")
     if not mongo_uri:
@@ -580,7 +558,7 @@ def parse_liste_visite(file):
         
         df['Statut Visite'] = 'Non Planifié'
         df['Date Visite'] = pd.NaT
-        df['Créneau Visite'] = pd.NaT # <-- Nouvelle colonne
+        df['Créneau Visite'] = pd.NaT
         df['Shift Début'] = ''
         df['Shift Fin'] = ''
         df['Heure Départ'] = pd.NaT
@@ -606,16 +584,9 @@ def parse_rta_file(file):
         df.columns = cols_cleaned
         
         rename_map = {
-            'WORKDAY ID': 'WORKDAY ID',
-            'NOM': 'Nom',
-            'PRENOM': 'Prénom',
-            'STATUT VISITE': 'Statut Visite',
-            'DATE VISITE': 'Date Visite',
-            'HEURE DEPART': 'Heure Départ',
-            'HEURE RETOUR': 'Heure Retour',
-            'COMMENTAIRES': 'Commentaire',
-            'DUREE': 'Durée',
-            'PROJET': 'Projet'
+            'WORKDAY ID': 'WORKDAY ID', 'NOM': 'Nom', 'PRENOM': 'Prénom', 'STATUT VISITE': 'Statut Visite',
+            'DATE VISITE': 'Date Visite', 'HEURE DEPART': 'Heure Départ', 'HEURE RETOUR': 'Heure Retour',
+            'COMMENTAIRES': 'Commentaire', 'DUREE': 'Durée', 'PROJET': 'Projet'
         }
         
         current_renames = {k: v for k, v in rename_map.items() if k in df.columns}
@@ -771,18 +742,11 @@ with tab2:
             with st.popover("🗑️ Zone de danger", use_container_width=True):
                 st.warning("Cette action supprimera définitivement la liste et tout l'historique de suivi.")
                 confirm_p2 = st.checkbox("Je confirme vouloir TOUT supprimer", key="conf_del_p2")
-                if st.button("Supprimer ALL", disabled=not confirm_p4, key="btn_del_p4", use_container_width=True):
-                            mask = medical_list['Statut Visite'] == 'Planifié'
-                            medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
-                            medical_list.loc[mask, 'Date Visite'] = pd.NaT
-                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT # <-- AJOUT
-                            medical_list.loc[mask, 'Heure Départ'] = pd.NaT
-                            medical_list.loc[mask, 'Heure Retour'] = pd.NaT
-                            medical_list.loc[mask, 'Commentaire'] = ''
-                            st.session_state.history_data['medical_list'] = medical_list
-                            save_history()
-                            st.success("Toutes les planifications ont été supprimées.")
-                            st.rerun()
+                if st.button("Supprimer ALL", disabled=not confirm_p2, key="btn_del_p2", use_container_width=True):
+                    st.session_state.history_data['medical_list'] = None
+                    save_history()
+                    st.success("Liste supprimée avec succès.")
+                    st.rerun()
         else:
             st.write("🔒 Consultation")
             
@@ -873,7 +837,7 @@ with tab3:
                         prio = st.selectbox("Prioriser", ["Aucune priorité", "Visite systématique", "Visite d'embauche"], key=f"prio_{i}")
                         plan_configs.append({
                             'actif': actif, 'day_name': day_name, 'date': d, 'debut': t1, 'fin': t2,
-                            'qty_amazon': n1, 'qty_others': n2, 'prio': prio
+                            'qty_river': n1, 'qty_others': n2, 'prio': prio
                         })
                         
                 submitted = st.form_submit_button("🚀 Générer la planification automatique", disabled=(role != "admin"))
@@ -919,7 +883,6 @@ with tab3:
                     df_others = working_df[~is_river]
                     
                     # --- NOUVELLE LOGIQUE DE CRÉNEAUX ---
-                    # Génération des créneaux de 30 minutes
                     slots = []
                     current_slot_dt = datetime.datetime.combine(date_obj, config['debut'])
                     end_slot_dt = datetime.datetime.combine(date_obj, config['fin'])
@@ -939,7 +902,6 @@ with tab3:
                                 for idx, row in available_df.iterrows():
                                     shift_d = get_time_obj(row[de_col])
                                     shift_f = get_time_obj(row[a_col])
-                                    # L'heure du créneau doit être comprise dans le shift du collaborateur
                                     if shift_d and shift_f and shift_d <= slot and shift_f >= slot:
                                         found_idx = idx
                                         break
@@ -958,7 +920,7 @@ with tab3:
                                     break
                         return picked_count
 
-                    picked_river = assign_slots(df_river, config.get('qty_river', 0))
+                    picked_river = assign_slots(df_river, config['qty_river'])
                     picked_others = assign_slots(df_others, config['qty_others'])
                     total_planned += picked_river + picked_others
                         
@@ -1024,7 +986,6 @@ with tab3:
             planned_this_week = enrich_shifts(planned_this_week, st.session_state.history_data['plannings'])
             
             if not planned_this_week.empty:
-            if not planned_this_week.empty:
                 display_planned = planned_this_week[['WORKDAY ID', 'Payroll ID', 'Nom', 'Projet', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin', 'Priorité Visite']].copy()
                 display_planned['Date Visite'] = display_planned['Date Visite'].dt.strftime('%d/%m/%Y')
                 display_planned['Créneau Visite'] = pd.to_datetime(display_planned['Créneau Visite'], errors='coerce').dt.strftime('%H:%M').fillna('')
@@ -1040,7 +1001,7 @@ with tab3:
                                    (pd.to_datetime(medical_list['Date Visite'], errors='coerce') <= pd.Timestamp(end_date))
                             medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                             medical_list.loc[mask, 'Date Visite'] = pd.NaT
-                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT # <-- AJOUT
+                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT
                             medical_list.loc[mask, 'Heure Départ'] = pd.NaT
                             medical_list.loc[mask, 'Heure Retour'] = pd.NaT
                             medical_list.loc[mask, 'Commentaire'] = ''
@@ -1058,7 +1019,7 @@ with tab3:
                             mask = medical_list['WORKDAY ID'].isin(ids_to_unplan)
                             medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                             medical_list.loc[mask, 'Date Visite'] = pd.NaT
-                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT # <-- AJOUT
+                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT
                             medical_list.loc[mask, 'Heure Départ'] = pd.NaT
                             medical_list.loc[mask, 'Heure Retour'] = pd.NaT
                             medical_list.loc[mask, 'Commentaire'] = ''
@@ -1102,6 +1063,7 @@ with tab4:
                             mask = medical_list['Statut Visite'] == 'Planifié'
                             medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                             medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT
                             medical_list.loc[mask, 'Heure Départ'] = pd.NaT
                             medical_list.loc[mask, 'Heure Retour'] = pd.NaT
                             medical_list.loc[mask, 'Commentaire'] = ''
@@ -1146,7 +1108,7 @@ with tab5:
         st.write("")
         if role == "admin":
             if st.session_state.history_data.get('rta_data') is not None:
-                if st.button("🗑️ Supprimer Suivi", key="btn_del_p5", use_container_width=True):
+                if st.button("🗑️ Supprimer RTA", key="btn_del_p5", use_container_width=True):
                     st.session_state.history_data['rta_data'] = None
                     save_history()
                     st.success("Données RTA supprimées.")
@@ -1332,7 +1294,7 @@ with tab7:
                 color_discrete_sequence=['#747474']
             )
             fig1.data[0].name = 'Total'
-            fig1.data[0].showlegend = True # <-- CORRECTION APPLIQUÉE ICI POUR AFFICHER LA LÉGENDE
+            fig1.data[0].showlegend = True
             fig1.data[0].text = counts_df['Total']
             fig1.data[0].textposition = 'outside'
             
@@ -1512,23 +1474,18 @@ with tab7:
         
         st.subheader("✅ Liste des visites effectuées")
         
-        # Filtrer les visites effectuées (commentaire contenant "ok")
         done_df = med_df[med_df['Commentaire'].astype(str).str.lower().str.contains('ok', na=False)].copy()
         
         if not done_df.empty:
-            # Création de la colonne Nom complet
             done_df['Nom complet'] = done_df['Nom'].fillna('').astype(str) + ' ' + done_df['Prénom'].fillna('').astype(str)
             
-            # S'assurer que les colonnes existent pour éviter les erreurs
             if 'Payroll ID' not in done_df.columns:
                 done_df['Payroll ID'] = ''
             if 'Projet' not in done_df.columns:
                 done_df['Projet'] = done_df['Projet_Affichage'] if 'Projet_Affichage' in done_df.columns else 'N/A'
                 
-            # Ajout de la nouvelle colonne Statut visite avec "Done"
             done_df['Statut visite'] = 'Done'
             
-            # Sélection et affichage des colonnes demandées
             cols_to_show_done = ['WORKDAY ID', 'Payroll ID', 'Nom complet', 'Projet', 'Statut visite']
             st.dataframe(done_df[cols_to_show_done], use_container_width=True, hide_index=True)
         else:
