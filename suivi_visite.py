@@ -170,6 +170,18 @@ custom_css = """
     .stDeployButton { display: none !important; }
     [data-testid="appCreatorAvatar"] { display: none !important; }
     a[href*="streamlit.io/cloud"] { display: none !important; }
+    
+        /* Masquer UNIQUEMENT les boutons Share, Crayon, Étoile et Chat en haut à droite */
+    /* On garde intacts le menu principal (⋮) et la barre latérale */
+    [data-testid="stHeaderActionElements"] a[href*="github.com"],
+    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
+    [data-testid="stHeaderActionElements"] .stGitHubStar,
+    [data-testid="stHeaderActionElements"] .stCommunityChat,
+    [data-testid="stHeaderActionElements"] button[aria-label="Share"],
+    [data-testid="stHeaderActionElements"] button[aria-label="Edit app"],
+    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
+        display: none !important;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
