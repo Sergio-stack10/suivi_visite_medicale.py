@@ -304,12 +304,14 @@ if 'history_data' not in st.session_state:
     
 if st.session_state.history_data.get('medical_list') is not None:
     med_list = st.session_state.history_data['medical_list']
-    for col in ['Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Payroll ID', 'Créneau Visite']:
+    for col in ['Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Payroll ID', 'Créneau Visite', 'Statut']:
         if col not in med_list.columns:
             if col == 'Ancienneté_num':
                 med_list[col] = 0
             elif col == 'Date d\'embauche' or col == 'Créneau Visite':
                 med_list[col] = pd.NaT
+            elif col == 'Statut':
+                med_list[col] = 'ENC'
             else:
                 med_list[col] = ''
     st.session_state.history_data['medical_list'] = med_list
@@ -502,7 +504,7 @@ def parse_liste_visite(file):
         cols_cleaned = [str(c).strip().upper() for c in df.columns]
         df.columns = cols_cleaned
         
-        id_col = nom_col = prenom_col = projet_col = visite_col = hire_col = paid_col = None
+        id_col = nom_col = prenom_col = projet_col = visite_col = hire_col = paid_col = statut_col = None
         for c in df.columns:
             if 'WORKDAY' in c or 'EMPLOYEE' in c or 'MATRICULE' in c: id_col = c
             if 'LAST' in c and 'NAME' in c: nom_col = c
@@ -512,6 +514,7 @@ def parse_liste_visite(file):
             if 'VISITE' in c or 'TYPE' in c: visite_col = c
             if 'HIRE' in c and 'DATE' in c: hire_col = c
             if 'PREVIOUS PAYROLL' in c or 'PAID ID' in c or 'PAYROLL ID' in c: paid_col = c
+            if 'STATUT' in c or 'POSTE' in c or 'JOB' in c or 'TITLE' in c or 'POSITION' in c or 'ROLE' in c: statut_col = c
             
         if id_col is None: return None
             
@@ -522,6 +525,7 @@ def parse_liste_visite(file):
         if projet_col: cols_to_keep.append(projet_col)
         if visite_col: cols_to_keep.append(visite_col)
         if hire_col: cols_to_keep.append(hire_col)
+        if statut_col: cols_to_keep.append(statut_col)
         
         df = df[cols_to_keep].copy()
         
@@ -544,6 +548,13 @@ def parse_liste_visite(file):
         else:
             df['Payroll ID'] = ''
             
+        # --- NOUVELLE COLONNE STATUT ---
+        if statut_col:
+            raw_statut = df[statut_col].astype(str).str.upper()
+            df['Statut'] = raw_statut.apply(lambda x: 'CC' if 'ADVISOR' in x or 'CUSTOMER SERVICE' in x or 'CC' in x else 'ENC')
+        else:
+            df['Statut'] = 'ENC'
+            
         df[id_col] = df[id_col].astype(str).str.replace(" ", "").str.replace(".0", "").str.upper()
         df = df.rename(columns={id_col: 'WORKDAY ID'})
         if nom_col: df = df.rename(columns={nom_col: 'Nom'})
@@ -565,7 +576,7 @@ def parse_liste_visite(file):
         df['Heure Retour'] = pd.NaT
         df['Commentaire'] = ''
         
-        final_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin', 'Heure Départ', 'Heure Retour', 'Commentaire']
+        final_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Statut', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin', 'Heure Départ', 'Heure Retour', 'Commentaire']
         return df[final_cols].drop_duplicates(subset=['WORKDAY ID'])
     except Exception as e:
         st.error(f"Erreur lors de la lecture du fichier Visite: {e}")
@@ -710,6 +721,7 @@ with tab1:
         for j in jours: 
             d_str = dates_map[j].strftime('%d/%m/%Y')
             cols_to_show += [f'{d_str} - Début', f'{d_str} - Fin', f'{d_str} - Présent']
+        
         st.dataframe(display_planning[cols_to_show], use_container_width=True, height=600)
         
         st.markdown("---")
@@ -773,7 +785,7 @@ with tab2:
         if sel_projet: df_filtered_p2 = df_filtered_p2[df_filtered_p2['Projet'].astype(str).isin(sel_projet)]
         if sel_prio: df_filtered_p2 = df_filtered_p2[df_filtered_p2['Priorité Visite'].astype(str).isin(sel_prio)]
         
-        export_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite']
+        export_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Statut', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite']
         display_p2 = df_filtered_p2.copy()
         display_p2['Date d\'embauche'] = pd.to_datetime(display_p2['Date d\'embauche'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
         
@@ -842,9 +854,10 @@ with tab3:
                         n1 = st.number_input("Nb River", 0, 100, 5, key=f"n1_{i}")
                         n2 = st.number_input("Nb Autres", 0, 100, 20, key=f"n2_{i}")
                         prio = st.selectbox("Prioriser", ["Aucune priorité", "Visite systématique", "Visite d'embauche"], key=f"prio_{i}")
+                        statut_filter = st.selectbox("Statut", ["Tous", "CC", "ENC"], key=f"statut_{i}")
                         plan_configs.append({
                             'actif': actif, 'day_name': day_name, 'date': d, 'debut': t1, 'fin': t2,
-                            'qty_river': n1, 'qty_others': n2, 'prio': prio
+                            'qty_river': n1, 'qty_others': n2, 'prio': prio, 'statut_filter': statut_filter
                         })
                         
                 submitted = st.form_submit_button("🚀 Générer la planification automatique", disabled=(role != "admin"))
@@ -866,16 +879,13 @@ with tab3:
                     planning_to_merge = current_planning.drop(columns=cols_to_drop).copy()
                     
                     # --- NOUVELLE LOGIQUE DE FUSION (Workday ID OU Payroll ID) ---
-                    # Étape 1 : Fusion sur le WORKDAY ID
                     merged_wid = pd.merge(medical_list, planning_to_merge, on='WORKDAY ID', how='inner', suffixes=('', '_planning'))
                     
-                    # Étape 2 : Pour ceux qui n'ont pas matché, on essaie avec le Payroll ID / Paid ID
-                    unmatched_med = medical_list[~medical_list['WORKDAY ID'].isin(merged_wid['WORKDAY ID'])]
+                    unmatched_med = medical_list[~medical_list['WORKDAY ID'].isin(merged_wid['WORKDAY ID'])].copy()
                     if 'Payroll ID' in unmatched_med.columns and 'Paid ID' in planning_to_merge.columns:
-                        unmatched_med = unmatched_med.rename(columns={'Payroll ID': 'Paid ID'})
-                        merged_pid = pd.merge(unmatched_med, planning_to_merge, on='Paid ID', how='inner', suffixes=('', '_planning'))
-                        # On uniformise la colonne WORKDAY ID
-                        merged_pid['WORKDAY ID'] = merged_pid['WORKDAY ID'].fillna(merged_pid['WORKDAY ID_planning'])
+                        unmatched_med_renamed = unmatched_med.rename(columns={'Payroll ID': 'Paid ID'})
+                        merged_pid = pd.merge(unmatched_med_renamed, planning_to_merge, on='Paid ID', how='inner', suffixes=('', '_planning'))
+                        merged_pid['WORKDAY ID'] = merged_pid['WORKDAY ID'].fillna(merged_pid.get('WORKDAY ID_planning'))
                         merged_wid = pd.concat([merged_wid, merged_pid], ignore_index=True)
                         
                     working_df = merged_wid.copy()
@@ -885,7 +895,6 @@ with tab3:
                         
                     working_df = working_df[working_df[de_col].apply(is_planned)].copy()
                     
-                    # Vérification du chevauchement avec l'intervalle cible
                     def is_available_during_slot(row, de_c, a_c, c_debut, c_fin):
                         shift_debut = get_time_obj(row[de_c])
                         shift_fin = get_time_obj(row[a_c])
@@ -895,13 +904,14 @@ with tab3:
                     working_df['_is_avail'] = working_df.apply(lambda r: is_available_during_slot(r, de_col, a_col, config['debut'], config['fin']), axis=1)
                     working_df = working_df[working_df['_is_avail']].copy()
                     
-                    # Exclure ceux déjà planifiés ou qui ont déjà fait la visite
+                    # --- FILTRE PAR STATUT (CC ou ENC) ---
+                    if config.get('statut_filter') and config['statut_filter'] != "Tous":
+                        working_df = working_df[working_df['Statut'].astype(str).str.upper() == config['statut_filter'].upper()]
+                    
                     working_df = working_df[~working_df['Statut Visite'].isin(['Planifié', 'Visite Faite'])]
                     
-                    # Identifier ceux à replanifier (Absent ou Reporté)
                     working_df['_is_replan'] = working_df.apply(lambda r: 'absent' in str(r.get('Statut Visite', '')).lower() or 'report' in str(r.get('Statut Visite', '')).lower() or 'absent' in str(r.get('Commentaire', '')).lower() or 'report' in str(r.get('Commentaire', '')).lower(), axis=1)
                     
-                    # Logique de tri
                     if config['prio'] != "Aucune priorité" and 'Priorité Visite' in working_df.columns:
                         working_df['_is_priority'] = working_df['Priorité Visite'].astype(str).str.strip().str.lower() == config['prio'].lower()
                         working_df = working_df.sort_values(by=['_is_replan', '_is_priority', 'Ancienneté_num'], ascending=[False, False, False])
@@ -909,7 +919,6 @@ with tab3:
                         working_df['_is_priority'] = False
                         working_df = working_df.sort_values(by=['_is_replan', 'Ancienneté_num'], ascending=[False, False])
                     
-                    # Séparation River et Autres (Recherche RIVER OU AMAZON)
                     is_river = working_df['Projet'].astype(str).str.contains('RIVER|AMAZON', case=False, na=False)
                     df_river = working_df[is_river]
                     df_others = working_df[~is_river]
@@ -1087,7 +1096,7 @@ with tab4:
         
         if not planned_list.empty:
             planned_list = enrich_shifts(planned_list, st.session_state.history_data['plannings'])
-            show_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin']
+            show_cols = ['WORKDAY ID', 'Payroll ID', 'Nom', 'Prénom', 'Statut', 'Date d\'embauche', 'Ancienneté', 'Projet', 'Priorité Visite', 'Statut Visite', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin']
             planned_list['Date Visite'] = pd.to_datetime(planned_list['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
             planned_list['Date d\'embauche'] = pd.to_datetime(planned_list['Date d\'embauche'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
             planned_list['Créneau Visite'] = pd.to_datetime(planned_list['Créneau Visite'], errors='coerce').dt.strftime('%H:%M').fillna('')
