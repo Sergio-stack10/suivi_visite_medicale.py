@@ -895,6 +895,16 @@ with tab3:
                         
                     working_df = working_df[working_df[de_col].apply(is_planned)].copy()
                     
+                    # --- MISE À JOUR DU STATUT À PARTIR DU PLANNING ---
+                    if 'Statut_planning' in working_df.columns:
+                        raw_statut = working_df['Statut_planning'].astype(str).str.upper()
+                        working_df['Statut'] = raw_statut.apply(lambda x: 'CC' if 'ADVISOR' in x or 'CUSTOMER SERVICE' in x or 'CC' in x else 'ENC')
+                        
+                        # On met à jour la liste principale (medical_list) avec ces vrais statuts
+                        statut_mapping = dict(zip(working_df['WORKDAY ID'], working_df['Statut']))
+                        medical_list['Statut'] = medical_list['WORKDAY ID'].map(statut_mapping).fillna(medical_list['Statut'])
+
+                    # Vérification du chevauchement avec l'intervalle cible
                     def is_available_during_slot(row, de_c, a_c, c_debut, c_fin):
                         shift_debut = get_time_obj(row[de_c])
                         shift_fin = get_time_obj(row[a_c])
