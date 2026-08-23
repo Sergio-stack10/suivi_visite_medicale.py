@@ -861,31 +861,42 @@ with tab3:
                     merged = pd.merge(medical_list, planning_to_merge, on='WORKDAY ID', how='inner')
                     working_df = merged[merged[de_col].apply(is_planned)].copy()
                     
+                    # Vérification du chevauchement avec l'intervalle cible
                     def is_available_during_slot(row, de_c, a_c, c_debut, c_fin):
                         shift_debut = get_time_obj(row[de_c])
                         shift_fin = get_time_obj(row[a_c])
                         if not shift_debut or not shift_fin: return False
-                        return shift_debut <= c_debut and shift_fin >= c_fin
+                        # Le shift doit chevaucher l'intervalle cible :
+                        # Il doit commencer avant la fin de l'intervalle ET finir après le début de l'intervalle
+                        return shift_debut < c_fin and shift_fin > c_debut
                         
                     working_df['_is_avail'] = working_df.apply(lambda r: is_available_during_slot(r, de_col, a_col, config['debut'], config['fin']), axis=1)
                     working_df = working_df[working_df['_is_avail']].copy()
                     
+                    # Exclure ceux déjà planifiés ou qui ont déjà fait la visite
                     working_df = working_df[~working_df['Statut Visite'].isin(['Planifié', 'Visite Faite'])]
                     
+                    # Identifier ceux à replanifier (Absent ou Reporté)
+                    working_df['_is_replan'] = working_df.apply(lambda r: 'absent' in str(r.get('Statut Visite', '')).lower() or 'report' in str(r.get('Statut Visite', '')).lower() or 'absent' in str(r.get('Commentaire', '')).lower() or 'report' in str(r.get('Commentaire', '')).lower(), axis=1)
+                    
+                    # Logique de tri : 1. Replanifier, 2. Priorité choisie, 3. Ancienneté (du plus ancien au plus récent)
                     if config['prio'] != "Aucune priorité" and 'Priorité Visite' in working_df.columns:
                         working_df['_is_priority'] = working_df['Priorité Visite'].astype(str).str.strip().str.lower() == config['prio'].lower()
-                        working_df = working_df.sort_values(by=['_is_priority', 'Ancienneté_num'], ascending=[False, False])
+                        working_df = working_df.sort_values(by=['_is_replan', '_is_priority', 'Ancienneté_num'], ascending=[False, False, False])
                     else:
-                        working_df = working_df.sort_values(by=['Ancienneté_num'], ascending=False)
+                        working_df['_is_priority'] = False
+                        working_df = working_df.sort_values(by=['_is_replan', 'Ancienneté_num'], ascending=[False, False])
                     
+                    # Séparation River et Autres
                     is_river = working_df['Projet'].astype(str).str.contains('RIVER', case=False, na=False)
                     df_river = working_df[is_river]
                     df_others = working_df[~is_river]
                     
-                    # --- NOUVELLE LOGIQUE DE CRÉNEAUX ---
+                    # --- LOGIQUE DE CRÉNEAUX ---
                     slots = []
                     current_slot_dt = datetime.datetime.combine(date_obj, config['debut'])
-                    end_slot_dt = datetime.datetime.combine(date_obj, config['fin'])
+                    # On génère des créneaux jusqu'à 30 min avant la fin de l'intervalle (pour que la visite de 30 min tienne dedans)
+                    end_slot_dt = datetime.datetime.combine(date_obj, config['fin']) - datetime.timedelta(minutes=30)
                     while current_slot_dt <= end_slot_dt:
                         slots.append(current_slot_dt.time())
                         current_slot_dt += datetime.timedelta(minutes=30)
@@ -894,30 +905,50 @@ with tab3:
                     
                     def assign_slots(df_group, target_qty):
                         picked_count = 0
-                        available_df = df_group.copy()
-                        for slot in slots:
-                            if picked_count >= target_qty: break
-                            while slot_counts[slot] < 4:
-                                found_idx = None
-                                for idx, row in available_df.iterrows():
-                                    shift_d = get_time_obj(row[de_col])
-                                    shift_f = get_time_obj(row[a_col])
-                                    if shift_d and shift_f and shift_d <= slot and shift_f >= slot:
-                                        found_idx = idx
-                                        break
+                        for idx, row in df_group.iterrows():
+                            if picked_count >= target_qty:
+                                break
+                            
+                            shift_d = get_time_obj(row[de_col])
+                            shift_f = get_time_obj(row[a_col])
+                            
+                            if not shift_d or not shift_f:
+                                continue
                                 
-                                if found_idx is not None:
-                                    wid = available_df.loc[found_idx, 'WORKDAY ID']
-                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Statut Visite'] = 'Planifié'
-                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Date Visite'] = pd.to_datetime(date_obj)
-                                    slot_dt = datetime.datetime.combine(date_obj, slot)
-                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Créneau Visite'] = pd.to_datetime(slot_dt)
-                                    available_df = available_df.drop(found_idx)
-                                    slot_counts[slot] += 1
-                                    picked_count += 1
-                                    if picked_count >= target_qty: break
-                                else:
-                                    break
+                            # Gestion des shifts de nuit (si l'heure de fin est plus petite que le début, on force à 23h59)
+                            shift_f_eval = shift_f
+                            if shift_f < shift_d:
+                                shift_f_eval = datetime.time(23, 59)
+                            
+                            assigned_slot = None
+                            for slot in slots:
+                                # Fin du créneau de 30 min
+                                slot_end_dt = datetime.datetime.combine(date_obj, slot) + datetime.timedelta(minutes=30)
+                                slot_end = slot_end_dt.time()
+                                
+                                # Le créneau doit être entièrement compris dans le shift du collaborateur
+                                if shift_d <= slot and shift_f_eval >= slot_end:
+                                    if slot_counts[slot] < 4:
+                                        assigned_slot = slot
+                                        break
+                                    
+                            if assigned_slot is not None:
+                                wid = row['WORKDAY ID']
+                                medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Statut Visite'] = 'Planifié'
+                                medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Date Visite'] = pd.to_datetime(date_obj)
+                                slot_dt = datetime.datetime.combine(date_obj, assigned_slot)
+                                medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Créneau Visite'] = pd.to_datetime(slot_dt)
+                                
+                                # Réinitialiser les champs si c'était un absent/reporté
+                                comment_series = medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Commentaire']
+                                med_comment = str(comment_series.values[0]).lower() if not comment_series.empty else ''
+                                if 'absent' in med_comment or 'report' in med_comment:
+                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Commentaire'] = ''
+                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Heure Départ'] = pd.NaT
+                                    medical_list.loc[medical_list['WORKDAY ID'] == wid, 'Heure Retour'] = pd.NaT
+                                    
+                                slot_counts[assigned_slot] += 1
+                                picked_count += 1
                         return picked_count
 
                     picked_river = assign_slots(df_river, config['qty_river'])
