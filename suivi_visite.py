@@ -301,7 +301,42 @@ def save_history():
 
 if 'history_data' not in st.session_state:
     st.session_state.history_data = load_history()
+
+# --- FONCTION DE SYNCHRONISATION DU STATUT ---
+def sync_statut_with_plannings(medical_list, history_plannings):
+    if medical_list is None or medical_list.empty:
+        return medical_list
+        
+    all_plannings = []
+    for p_df in history_plannings.values():
+        if 'Statut' in p_df.columns:
+            all_plannings.append(p_df[['WORKDAY ID', 'Paid ID', 'Statut']].copy())
+            
+    if not all_plannings:
+        return medical_list
+        
+    plannings_concat = pd.concat(all_plannings, ignore_index=True).drop_duplicates(subset=['WORKDAY ID'])
     
+    plannings_concat['WORKDAY ID'] = plannings_concat['WORKDAY ID'].astype(str).str.replace(" ", "").str.upper()
+    if 'Paid ID' in plannings_concat.columns:
+        plannings_concat['Paid ID'] = plannings_concat['Paid ID'].astype(str).str.replace(" ", "").str.upper()
+        
+    medical_list['WORKDAY ID'] = medical_list['WORKDAY ID'].astype(str).str.replace(" ", "").str.upper()
+    
+    map_wid = dict(zip(plannings_concat['WORKDAY ID'], plannings_concat['Statut']))
+    medical_list['Statut'] = medical_list['WORKDAY ID'].map(map_wid)
+    
+    if 'Payroll ID' in medical_list.columns and 'Paid ID' in plannings_concat.columns:
+        missing_mask = medical_list['Statut'].isna()
+        if missing_mask.any():
+            map_pid = dict(zip(plannings_concat['Paid ID'], plannings_concat['Statut']))
+            medical_list.loc[missing_mask, 'Statut'] = medical_list.loc[missing_mask, 'Payroll ID'].astype(str).str.replace(" ", "").str.upper().map(map_pid)
+            
+    medical_list['Statut'] = medical_list['Statut'].fillna('ENC')
+    medical_list['Statut'] = medical_list['Statut'].apply(lambda x: 'CC' if 'ADVISOR' in str(x).upper() or 'CUSTOMER SERVICE' in str(x).upper() or 'CC' in str(x).upper() else 'ENC')
+    
+    return medical_list
+
 if st.session_state.history_data.get('medical_list') is not None:
     med_list = st.session_state.history_data['medical_list']
     for col in ['Prénom', 'Date d\'embauche', 'Ancienneté', 'Ancienneté_num', 'Payroll ID', 'Créneau Visite', 'Statut']:
@@ -314,6 +349,9 @@ if st.session_state.history_data.get('medical_list') is not None:
                 med_list[col] = 'ENC'
             else:
                 med_list[col] = ''
+    
+    # Synchronisation automatique au démarrage
+    med_list = sync_statut_with_plannings(med_list, st.session_state.history_data.get('plannings', {}))
     st.session_state.history_data['medical_list'] = med_list
     
 if 'current_week' not in st.session_state:
@@ -548,7 +586,6 @@ def parse_liste_visite(file):
         else:
             df['Payroll ID'] = ''
             
-        # --- NOUVELLE COLONNE STATUT ---
         if statut_col:
             raw_statut = df[statut_col].astype(str).str.upper()
             df['Statut'] = raw_statut.apply(lambda x: 'CC' if 'ADVISOR' in x or 'CUSTOMER SERVICE' in x or 'CC' in x else 'ENC')
@@ -683,6 +720,13 @@ with tab1:
                 with st.spinner("Traitement des fichiers en cours..."):
                     planning_df = parse_planning(files_planning, jours)
                     st.session_state.history_data['plannings'][week_num] = planning_df
+                    
+                    # --- SYNCHRONISATION DU STATUT ---
+                    med_list_to_sync = st.session_state.history_data.get('medical_list')
+                    if med_list_to_sync is not None:
+                        med_list_to_sync = sync_statut_with_plannings(med_list_to_sync, st.session_state.history_data['plannings'])
+                        st.session_state.history_data['medical_list'] = med_list_to_sync
+                        
                     save_history()
                     st.session_state.current_week = week_num
                 st.success(f"Semaine {week_num} chargée et sauvegardée avec succès !")
@@ -747,6 +791,8 @@ with tab2:
                     with st.spinner("Lecture du fichier..."):
                         medical_df = parse_liste_visite(file_a_passer)
                         if medical_df is not None:
+                            # --- SYNCHRONISATION DU STATUT ---
+                            medical_df = sync_statut_with_plannings(medical_df, st.session_state.history_data.get('plannings', {}))
                             st.session_state.history_data['medical_list'] = medical_df
                             save_history()
                             st.success(f"{len(medical_df)} collaborateurs chargés avec succès !")
@@ -875,7 +921,7 @@ with tab3:
                     de_col = f"{sel_day}_DE"
                     a_col = f"{sel_day}_A"
                     
-                    cols_to_drop = [c for c in ['Nom', 'Projet'] if c in current_planning.columns]
+                    cols_to_drop = [c for c in ['Nom', 'Projet', 'Statut'] if c in current_planning.columns]
                     planning_to_merge = current_planning.drop(columns=cols_to_drop).copy()
                     
                     # --- NOUVELLE LOGIQUE DE FUSION (Workday ID OU Payroll ID) ---
@@ -895,16 +941,6 @@ with tab3:
                         
                     working_df = working_df[working_df[de_col].apply(is_planned)].copy()
                     
-                    # --- MISE À JOUR DU STATUT À PARTIR DU PLANNING ---
-                    if 'Statut_planning' in working_df.columns:
-                        raw_statut = working_df['Statut_planning'].astype(str).str.upper()
-                        working_df['Statut'] = raw_statut.apply(lambda x: 'CC' if 'ADVISOR' in x or 'CUSTOMER SERVICE' in x or 'CC' in x else 'ENC')
-                        
-                        # On met à jour la liste principale (medical_list) avec ces vrais statuts
-                        statut_mapping = dict(zip(working_df['WORKDAY ID'], working_df['Statut']))
-                        medical_list['Statut'] = medical_list['WORKDAY ID'].map(statut_mapping).fillna(medical_list['Statut'])
-
-                    # Vérification du chevauchement avec l'intervalle cible
                     def is_available_during_slot(row, de_c, a_c, c_debut, c_fin):
                         shift_debut = get_time_obj(row[de_c])
                         shift_fin = get_time_obj(row[a_c])
