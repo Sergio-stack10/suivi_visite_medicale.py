@@ -710,6 +710,15 @@ with tab1:
         for j in jours: 
             d_str = dates_map[j].strftime('%d/%m/%Y')
             cols_to_show += [f'{d_str} - Début', f'{d_str} - Fin', f'{d_str} - Présent']
+        st.dataframe(display_planning[cols_to_show], use_container_width=True, height=600)
+        
+        st.markdown("---")
+        st.download_button(
+            label="📥 Exporter le planning (Excel)",
+            data=to_excel(display_planning[cols_to_show]),
+            file_name=f"planning_{st.session_state.current_week}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )            
         
         st.dataframe(display_planning[cols_to_show], use_container_width=True, height=600)
 
