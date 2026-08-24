@@ -230,7 +230,7 @@ def get_mapped_project(projet):
 with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
     if role == "admin":
         files_planning = st.file_uploader("Fichiers Planning (Obligatoire)", type=['xlsx', 'xls', 'xlsb'], accept_multiple_files=True)
-        file_a_passer = st.file_uploader("Fichier PLANIFICATION VISITE SYSTEMATIQUE", type=['xlsx'])
+        file_a_passer = st.file_uploader("Fichier Liste des collaborateurs", type=['xlsx'])
         file_rta = st.file_uploader("Fichier Enregistrement visite médicale (RTA)", type=['xlsx'])
     else:
         st.info("🔒 Mode consultation : Vous n'avez pas accès aux imports de fichiers.")
@@ -662,7 +662,7 @@ def parse_rta_file(file):
 # --- AFFICHAGE DES ONGLETS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📄 1. Planning MC & River", 
-    "👥 2. Liste de collaborateurs", 
+    "👥 2. Liste des collaborateurs", 
     "📅 3. Géneration planning visite",
     "📋 4. Planning visite",
     "✅ 5. Import fichier Suivi", 
@@ -776,7 +776,7 @@ with tab1:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# --- PAGE 2 : LISTE DE COLLABORATEURS ---
+# --- PAGE 2 : LISTE DES COLLABORATEURS ---
 with tab2:
     medical_list = st.session_state.history_data.get('medical_list')
     
