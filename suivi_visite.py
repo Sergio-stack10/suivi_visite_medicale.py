@@ -162,6 +162,42 @@ custom_css = """
     [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
         display: none !important;
     }
+    /* --- MASQUAGE STRICT DES BOUTONS STREAMLIT CLOUD & GITHUB --- */
+    
+    /* Cible l'avatar GitHub */
+    [data-testid="appCreatorAvatar"],
+    [data-testid="appCreatorAvatarImage"],
+    img[alt="App Creator Avatar"] {
+        display: none !important;
+    }
+    
+    /* Cible le logo Streamlit et le bouton "Hosted with Streamlit" */
+    [data-testid="stLogo"],
+    .stDeployButton,
+    [data-testid="stDeployButton"],
+    div[class*="_link_"] {
+        display: none !important;
+    }
+    
+    /* Cible les boutons et liens spécifiques dans la barre d'outils du haut */
+    [data-testid="stHeaderActionElements"] a[href*="github.com"],
+    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
+    [data-testid="stHeaderActionElements"] .stGitHubStar,
+    [data-testid="stHeaderActionElements"] .stCommunityChat,
+    [data-testid="stHeaderActionElements"] button[aria-label="Share"],
+    [data-testid="stHeaderActionElements"] button[aria-label="Edit app"],
+    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
+        display: none !important;
+    }
+    
+    /* Ciblage global dans l'en-tête pour les liens externes (sans toucher au menu hamburger) */
+    [data-testid="stHeader"] [data-testid="stToolbar"] a[href*="streamlit.io"],
+    [data-testid="stHeader"] [data-testid="stToolbar"] a[href*="github.com"],
+    [data-testid="stHeader"] [data-testid="stToolbar"] [data-testid="appCreatorAvatar"],
+    [data-testid="stHeader"] [data-testid="stToolbar"] [data-testid="stLogo"],
+    [data-testid="stHeader"] [data-testid="stToolbar"] .stDeployButton {
+        display: none !important;
+    }    
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
