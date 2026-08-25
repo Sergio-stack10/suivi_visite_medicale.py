@@ -197,23 +197,23 @@ custom_css = """
         box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
     }
     [data-testid="stSidebarCollapseButton"] svg { color: #002032 !important; fill: #002032 !important; }
-        /* Aligner la valeur et le pourcentage (Delta) sur la même ligne */
+    /* Aligner la Valeur et le Pourcentage (Delta) sur la même ligne, avec le % à droite */
     [data-testid="stMetric"] {
         display: flex !important;
-        flex-wrap: wrap !important;
-        align-items: baseline !important;
-        justify-content: flex-start !important;
+        flex-direction: column !important;
+        gap: 5px !important;
     }
     [data-testid="stMetricLabel"] {
-        width: 100% !important; /* Le titre prend toute la largeur */
-        margin-bottom: 5px !important;
+        width: 100% !important;
     }
-    [data-testid="stMetricValue"], [data-testid="stMetricDelta"] {
+    [data-testid="stMetricValue"], 
+    [data-testid="stMetricDelta"],
+    [data-testid="stMetricValue"] + div {
         display: inline-flex !important;
         align-items: center !important;
     }
-    [data-testid="stMetricValue"] {
-        margin-right: 15px !important; /* Un peu d'espace entre le chiffre et le pourcentage */
+    [data-testid="stMetricDelta"] {
+        margin-left: auto !important; /* Pousse le pourcentage complètement à droite */
     }
         /* Forcer la Valeur et le Pourcentage (Delta) sur la même ligne */
     [data-testid="stMetricValue"], 
@@ -1726,6 +1726,6 @@ with tab7:
 
 # --- SIGNATURE FIXEE EN BAS ---
 st.markdown(
-    "<div class='footer-fix'>Developed by <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>", 
+    "<div class='footer-fix'><span style='color: #FFFFFF;'>Developed by</span> <span style='color: #25E2CC; font-weight: 700; letter-spacing: 1px; margin-left: 2px;'> TEAM TMM 🦄</span></div>", 
     unsafe_allow_html=True
 )
