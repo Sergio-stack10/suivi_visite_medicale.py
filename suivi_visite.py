@@ -200,7 +200,7 @@ custom_css = """
         /* --- AJUSTEMENTS FINALS (DARK MODE & METRICS) --- */
     
     /* Rendre les titres clairs (turquoise clair) pour qu'ils soient visibles en mode Dark */
-    h2, h3 { color: #A8F3EB !important; font-weight: 600 !important; }
+    h2, h3 { color: #F2F2F2 !important; font-weight: 600 !important; }
     
     /* Aligner le pourcentage (Delta) à droite de la valeur */
     [data-testid="stMetric"] {
