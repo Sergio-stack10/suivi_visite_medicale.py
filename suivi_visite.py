@@ -195,27 +195,25 @@ custom_css = """
     [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
         display: none !important;
     }
-        /* Masquer l'avatar du créateur et son conteneur de profil */
-    div[class*="_profilePreview_"],
-    [data-testid="appCreatorAvatar"] {
-        display: none !important;
-    }
-
-    /* Masquer les icônes d'action de la barre d'outils du haut */
-    [data-testid="stToolbarActionButtonIcon"] {
-        display: none !important;
-    }
-        /* Masquer le menu hamburger et le footer en bas à droite */
-    #MainMenu {
-        visibility: hidden !important;
-        display: none !important;
-    }
-    footer {
-        visibility: hidden !important;
-        display: none !important;
-    }
+    /* --- MASQUAGE DÉFINITIF DES BOUTONS STREAMLAT CLOUD --- */
+    
+    /* 1. Masquer le Logo Streamlit (le grand SVG en bas à droite) */
+    div[class*="_link_"],
     [data-testid="stLogo"] {
-        visibility: hidden !important;
+        display: none !important;
+    }
+    
+    /* 2. Masquer l'Avatar du créateur (l'image de profil GitHub) */
+    [data-testid="appCreatorAvatar"],
+    img[class*="_profileImage_"],
+    div[class*="_profilePreview_"] {
+        display: none !important;
+    }
+    
+    /* 3. Masquer les icônes restantes dans la barre d'outils du haut */
+    [data-testid="stToolbarActionButtonIcon"],
+    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
+    [data-testid="stHeaderActionElements"] a[href*="github.com"] {
         display: none !important;
     }
 </style>
