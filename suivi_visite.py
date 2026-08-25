@@ -197,6 +197,23 @@ custom_css = """
         box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
     }
     [data-testid="stSidebarCollapseButton"] svg { color: #002032 !important; fill: #002032 !important; }
+        /* --- AJUSTEMENTS FINALS (DARK MODE & METRICS) --- */
+    
+    /* Rendre les titres clairs (turquoise clair) pour qu'ils soient visibles en mode Dark */
+    h2, h3 { color: #A8F3EB !important; font-weight: 600 !important; }
+    
+    /* Aligner le pourcentage (Delta) à droite de la valeur */
+    [data-testid="stMetric"] {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+    }
+    [data-testid="stMetricLabel"] {
+        width: 100% !important;
+        margin-bottom: 5px !important;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -1467,7 +1484,10 @@ with tab7:
             fig1.update_layout(
                 barmode='overlay', 
                 legend_title_text='Légende',
-                yaxis_range=[0, counts_df['Total'].max() * 1.15]
+                yaxis_range=[0, counts_df['Total'].max() * 1.15],
+                paper_bgcolor='rgba(0,0,0,0)', # Fond transparent
+                plot_bgcolor='rgba(0,0,0,0)',  # Fond transparent
+                font=dict(color='#A8F3EB')     # Police en turquoise clair (visible en dark et light)
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
@@ -1512,7 +1532,12 @@ with tab7:
             )
             fig2.update_traces(textposition='outside')
             max_val = counts_g2_df[['Planifié', 'Visite effectuée', 'Absent/Reporté']].max().max()
-            fig2.update_layout(yaxis_range=[0, max_val * 1.15])
+            fig2.update_layout(
+                yaxis_range=[0, max_val * 1.15],
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#A8F3EB')
+            )
             st.plotly_chart(fig2, use_container_width=True)
         else:
             st.info("Aucune donnée disponible.")
@@ -1598,7 +1623,13 @@ with tab7:
                     pull=pull_values,
                     insidetextorientation='radial'
                 )
-                fig_site.update_layout(showlegend=False, margin=dict(t=40, b=20, l=20, r=20))
+                fig_site.update_layout(
+                    showlegend=False, 
+                    margin=dict(t=40, b=20, l=20, r=20),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#A8F3EB')
+                )
                 
                 st.plotly_chart(fig_site, use_container_width=True)
             else:
