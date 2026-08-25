@@ -1154,14 +1154,7 @@ with tab3:
                             edit_df,
                             num_rows="dynamic",
                             use_container_width=True,
-                            key="editor_p3",
-                            column_config={
-                                "Statut Visite": st.column_config.SelectBoxColumn(
-                                    "Statut Visite",
-                                    options=["Planifié", "Non Planifié"],
-                                    required=True,
-                                )
-                            }
+                            key="editor_p3"
                         )
                         
                         if st.button("💾 Sauvegarder les modifications manuelles"):
