@@ -1487,7 +1487,7 @@ with tab7:
                 yaxis_range=[0, counts_df['Total'].max() * 1.15],
                 paper_bgcolor='rgba(0,0,0,0)', # Fond transparent
                 plot_bgcolor='rgba(0,0,0,0)',  # Fond transparent
-                font=dict(color='#FBCA18')     # Police en turquoise clair (visible en dark et light)
+                font=dict(color='#003D5B')     # Police en turquoise clair (visible en dark et light)
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
