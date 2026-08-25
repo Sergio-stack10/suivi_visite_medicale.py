@@ -103,13 +103,24 @@ st.title("🏥 Suivi des Visites Médicales")
 # --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ET LES ANIMATIONS ---
 custom_css = """
 <style>
-    /* Adaptation Mode Nuit (On retire les fonds blancs forcés pour laisser Streamlit gérer) */
-    .stApp { background: transparent !important; }
-    .block-container { 
-        background: transparent !important; 
-        backdrop-filter: none !important; 
-        padding-top: 5rem !important; 
-        padding-bottom: 1rem !important; 
+    /* --- Design Visuel et Animations --- */
+    .stApp {
+        background: linear-gradient(-45deg, #f2f9ff, #e6f7ff, #fdfbff, #eaf6ff);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+    }
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    .block-container {
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(8px);
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding-top: 5rem !important; padding-bottom: 1rem !important;
     }
     
     html, body, .stApp { font-size: 14px; }
@@ -121,7 +132,6 @@ custom_css = """
     section[data-testid="stSidebar"] label { font-size: 13px !important; color: #747474 !important; }
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #A8F3EB !important; font-size: 15px !important; }
     
-    /* Onglets animés */
     .stTabs [data-baseweb="tab-list"] { gap: 15px; }
     .stTabs [data-baseweb="tab"] {
         background-color: #FFFFFF; color: #2A2B2C; border: 2px solid #F2F2F2; border-radius: 8px;
@@ -136,7 +146,6 @@ custom_css = """
     .stTabs [data-baseweb="tab-highlight"] { background-color: transparent !important; }
     .stTabs [data-baseweb="tab-border-bottom"] { display: none; }
     
-    /* Boutons animés */
     div.stButton > button {
         background-color: #003D5B; color: #FFFFFF; border: 2px solid #003D5B; padding: 10px 25px;
         border-radius: 25px; font-weight: bold; box-shadow: 0 4px 8px rgba(0, 61, 91, 0.2); transition: all 0.3s ease;
@@ -151,7 +160,6 @@ custom_css = """
     .stAlert [data-testid="stAlertContent"] { border-left: 5px solid #25E2CC; }
     [data-testid="stMetricValue"] { color: #007380; font-weight: bold; }
     
-    /* Footer */
     .footer-fix {
         position: fixed !important; left: 0 !important; bottom: 0 !important; width: 100% !important;
         background-color: #002032 !important; color: #FFFFFF !important; text-align: left !important;
@@ -170,24 +178,29 @@ custom_css = """
     [data-testid="stSidebarCollapseButton"]:hover { background-color: #25E2CC !important; }
     [data-testid="stSidebarCollapseButton"]:hover svg { color: #002032 !important; fill: #002032 !important; }
 
-    /* --- OPTION NUCLEAIRE POUR LES BOUTONS STREAMLIT CLOUD --- */
-    .stDeployButton, [data-testid="stDeployButton"] { display: none !important; visibility: hidden !important; }
+    /* --- MASQUAGE TRÈS CIBLÉ DES LOGOS STREAMLIT CLOUD --- */
+    /* Cible le bouton de déploiement "Hosted with Streamlit" */
+    .stDeployButton, [data-testid="stDeployButton"] { 
+        display: none !important; 
+    }
     
-    /* Cible le logo et le lien Streamlit en cherchant le début de leur classe */
-    div[class^="_link_"], a[class^="_link_"], div[class*="stLogo"], [data-testid="stLogo"] {
-        display: none !important; visibility: hidden !important;
+    /* Cible le logo Streamlit (le grand SVG) et l'avatar du créateur */
+    div[class*="_link_"], 
+    div[class*="_profilePreview_"], 
+    img[data-testid="appCreatorAvatar"], 
+    [data-testid="appCreatorAvatar"], 
+    [data-testid="stLogo"] {
+        display: none !important;
     }
 
-    /* Cible l'avatar du créateur et son conteneur */
-    div[class^="_profilePreview_"], img[data-testid="appCreatorAvatar"], [data-testid="appCreatorAvatar"] {
-        display: none !important; visibility: hidden !important;
-    }
-
-    /* Masquer le menu hamburger et le footer en bas à droite */
-    #MainMenu, footer, [data-testid="stLogo"] {
-        visibility: hidden !important; display: none !important;
-    }
-    [data-testid="stToolbarActionButtonIcon"], [data-testid="stHeaderActionElements"] a[href*="streamlit.io"], [data-testid="stHeaderActionElements"] a[href*="github.com"] {
+    /* Cible les boutons spécifiques dans la barre d'outils du haut sans casser le menu hamburger */
+    [data-testid="stHeaderActionElements"] a[href*="github.com"],
+    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
+    [data-testid="stHeaderActionElements"] .stGitHubStar,
+    [data-testid="stHeaderActionElements"] .stCommunityChat,
+    [data-testid="stHeaderActionElements"] button[aria-label="Share"],
+    [data-testid="stHeaderActionElements"] button[aria-label="Edit app"],
+    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
         display: none !important;
     }
 </style>
