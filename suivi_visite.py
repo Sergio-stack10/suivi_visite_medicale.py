@@ -195,6 +195,16 @@ custom_css = """
     [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
         display: none !important;
     }
+        /* Masquer l'avatar du créateur et son conteneur de profil */
+    div[class*="_profilePreview_"],
+    [data-testid="appCreatorAvatar"] {
+        display: none !important;
+    }
+
+    /* Masquer les icônes d'action de la barre d'outils du haut */
+    [data-testid="stToolbarActionButtonIcon"] {
+        display: none !important;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -1144,33 +1154,44 @@ with tab3:
                 
                 if role == "admin":
                     with st.expander("❌ Annuler ou modifier la planification (Tableau interactif)", expanded=True):
-                        st.markdown("💡 **Modifiez directement les cellules du tableau ci-dessous.** Pour déplanifier quelqu'un, changez son Statut en 'Non Planifié'. Cliquez sur le bouton Sauvegarder en bas une fois terminé.")
+                        st.markdown("💡 **Modifiez directement les cellules du tableau ci-dessous.** Pour planifier ou déplanifier quelqu'un, changez son Statut. Cliquez sur le bouton Sauvegarder en bas une fois terminé.")
                         
-                        edit_df = planned_this_week[['WORKDAY ID', 'Nom', 'Projet', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin', 'Priorité Visite', 'Statut Visite']].copy()
-                        edit_df['Date Visite'] = edit_df['Date Visite'].dt.strftime('%d/%m/%Y')
+                        # On prend TOUTE la liste des collaborateurs
+                        edit_df = medical_list[['WORKDAY ID', 'Nom', 'Projet', 'Statut Visite', 'Date Visite', 'Créneau Visite']].copy()
+                        
+                        # Formatage pour l'affichage
+                        edit_df['Date Visite'] = pd.to_datetime(edit_df['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
                         edit_df['Créneau Visite'] = pd.to_datetime(edit_df['Créneau Visite'], errors='coerce').dt.strftime('%H:%M').fillna('')
                         
+                        # Tableau entièrement modifiable (sauf le WORKDAY ID qui est verrouillé pour ne pas casser les données)
                         edited_df = st.data_editor(
                             edit_df,
                             num_rows="dynamic",
                             use_container_width=True,
-                            key="editor_p3"
+                            height=600,
+                            key="editor_p3_full",
+                            disabled=['WORKDAY ID', 'Nom', 'Projet'] # On verrouille les identités pour éviter les erreurs
                         )
                         
                         if st.button("💾 Sauvegarder les modifications manuelles"):
+                            # Conversion des textes saisis en dates/heures
                             edited_df['Date Visite'] = pd.to_datetime(edited_df['Date Visite'], format='%d/%m/%Y', errors='coerce')
                             edited_df['Créneau Visite'] = pd.to_datetime(edited_df['Créneau Visite'], format='%H:%M', errors='coerce')
                             
+                            # On met à jour la base de données principale
                             for idx, row in edited_df.iterrows():
                                 wid = row['WORKDAY ID']
                                 mask = medical_list['WORKDAY ID'] == wid
                                 
-                                if row['Statut Visite'] == 'Non Planifié':
+                                statut = str(row['Statut Visite']).strip()
+                                
+                                if statut.lower() == 'non planifié':
                                     medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
                                     medical_list.loc[mask, 'Date Visite'] = pd.NaT
                                     medical_list.loc[mask, 'Créneau Visite'] = pd.NaT
                                 else:
-                                    medical_list.loc[mask, 'Statut Visite'] = row['Statut Visite']
+                                    # Si l'utilisateur a tapé "Planifié" ou autre chose
+                                    medical_list.loc[mask, 'Statut Visite'] = statut
                                     medical_list.loc[mask, 'Date Visite'] = row['Date Visite']
                                     medical_list.loc[mask, 'Créneau Visite'] = row['Créneau Visite']
                             
