@@ -215,6 +215,19 @@ custom_css = """
     [data-testid="stMetricValue"] {
         margin-right: 15px !important; /* Un peu d'espace entre le chiffre et le pourcentage */
     }
+        /* Forcer la Valeur et le Pourcentage (Delta) sur la même ligne */
+    [data-testid="stMetricValue"], 
+    [data-testid="stMetricDelta"],
+    [data-testid="stMetricValue"] + div {
+        display: inline-block !important;
+        vertical-align: middle !important;
+    }
+    [data-testid="stMetricDelta"] {
+        margin-left: 10px !important;
+    }
+    [data-testid="stMetricValue"] + div {
+        display: inline-block !important;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
