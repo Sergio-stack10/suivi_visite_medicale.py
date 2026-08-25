@@ -100,37 +100,70 @@ with st.sidebar:
 
 st.title("🏥 Suivi des Visites Médicales")
 
-# --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
+# --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ET LES ANIMATIONS ---
 custom_css = """
 <style>
-    .stApp, .block-container { padding-top: 5rem !important; padding-bottom: 1rem !important; }
+    /* Fond d'écran animé en dégradé doux */
+    .stApp {
+        background: linear-gradient(-45deg, #f2f9ff, #e6f7ff, #fdfbff, #eaf6ff);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+    }
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Transparence et effet de verre (Glassmorphism) pour le contenu principal */
+    .block-container {
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(8px);
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding-top: 4rem !important; padding-bottom: 1rem !important;
+    }
+    
     html, body, .stApp { font-size: 14px; }
     h1 { color: #25E2CC !important; font-weight: 600; padding-bottom: 10px; border-bottom: 2px solid #003D5B; }
+    
     section[data-testid="stSidebar"] { background-color: #002032; width: 260px !important; }
     section[data-testid="stSidebar"] > div:first-child { width: 260px !important; padding-top: 20px; }
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"], 
     section[data-testid="stSidebar"] label { font-size: 13px !important; color: #747474 !important; }
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #A8F3EB !important; font-size: 15px !important; }
+    
+    /* Onglets animés */
     .stTabs [data-baseweb="tab-list"] { gap: 15px; }
     .stTabs [data-baseweb="tab"] {
         background-color: #FFFFFF; color: #2A2B2C; border: 2px solid #F2F2F2; border-radius: 8px;
         padding: 12px 20px; clip-path: polygon(15px 0%, 100% 0%, 100% 100%, 15px 100%, 0% 50%);
         font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s ease;
     }
-    .stTabs [data-baseweb="tab"]:hover { border-color: #25E2CC; background-color: #E9FCFA; }
+    .stTabs [data-baseweb="tab"]:hover { 
+        border-color: #25E2CC; background-color: #E9FCFA; transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 226, 204, 0.2);
+    }
     .stTabs [aria-selected="true"] { background-color: #003D5B !important; color: #FFFFFF !important; box-shadow: 0 4px 12px rgba(0, 115, 128, 0.3); }
     .stTabs [data-baseweb="tab-highlight"] { background-color: transparent !important; }
     .stTabs [data-baseweb="tab-border-bottom"] { display: none; }
+    
+    /* Boutons animés */
     div.stButton > button {
         background-color: #003D5B; color: #FFFFFF; border: 2px solid #003D5B; padding: 10px 25px;
         border-radius: 25px; font-weight: bold; box-shadow: 0 4px 8px rgba(0, 61, 91, 0.2); transition: all 0.3s ease;
     }
-    div.stButton > button:hover { background-color: #FBCA18; color: #002032; border-color: #FBCA18; transform: translateY(-2px); }
+    div.stButton > button:hover { 
+        background-color: #FBCA18; color: #002032; border-color: #FBCA18; transform: translateY(-2px); 
+        box-shadow: 0 6px 15px rgba(251, 202, 24, 0.3);
+    }
     .stDownloadButton > button { background-color: #25E2CC !important; color: #002032 !important; border: 2px solid #25E2CC !important; border-radius: 8px !important; font-weight: bold; }
     .stDownloadButton > button:hover { background-color: #007380 !important; color: #FFFFFF !important; border-color: #007380 !important; }
+    
     .stAlert [data-testid="stAlertContent"] { border-left: 5px solid #25E2CC; }
     [data-testid="stMetricValue"] { color: #007380; font-weight: bold; }
     
+    /* Footer */
     .footer-fix {
         position: fixed !important; left: 0 !important; bottom: 0 !important; width: 100% !important;
         background-color: #002032 !important; color: #FFFFFF !important; text-align: left !important;
@@ -162,42 +195,6 @@ custom_css = """
     [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
         display: none !important;
     }
-    /* --- MASQUAGE STRICT DES BOUTONS STREAMLIT CLOUD & GITHUB --- */
-    
-    /* Cible l'avatar GitHub */
-    [data-testid="appCreatorAvatar"],
-    [data-testid="appCreatorAvatarImage"],
-    img[alt="App Creator Avatar"] {
-        display: none !important;
-    }
-    
-    /* Cible le logo Streamlit et le bouton "Hosted with Streamlit" */
-    [data-testid="stLogo"],
-    .stDeployButton,
-    [data-testid="stDeployButton"],
-    div[class*="_link_"] {
-        display: none !important;
-    }
-    
-    /* Cible les boutons et liens spécifiques dans la barre d'outils du haut */
-    [data-testid="stHeaderActionElements"] a[href*="github.com"],
-    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
-    [data-testid="stHeaderActionElements"] .stGitHubStar,
-    [data-testid="stHeaderActionElements"] .stCommunityChat,
-    [data-testid="stHeaderActionElements"] button[aria-label="Share"],
-    [data-testid="stHeaderActionElements"] button[aria-label="Edit app"],
-    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
-        display: none !important;
-    }
-    
-    /* Ciblage global dans l'en-tête pour les liens externes (sans toucher au menu hamburger) */
-    [data-testid="stHeader"] [data-testid="stToolbar"] a[href*="streamlit.io"],
-    [data-testid="stHeader"] [data-testid="stToolbar"] a[href*="github.com"],
-    [data-testid="stHeader"] [data-testid="stToolbar"] [data-testid="appCreatorAvatar"],
-    [data-testid="stHeader"] [data-testid="stToolbar"] [data-testid="stLogo"],
-    [data-testid="stHeader"] [data-testid="stToolbar"] .stDeployButton {
-        display: none !important;
-    }    
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -266,7 +263,7 @@ def get_mapped_project(projet):
 with st.sidebar.expander("📥 Importation des fichiers", expanded=True):
     if role == "admin":
         files_planning = st.file_uploader("Fichiers Planning (Obligatoire)", type=['xlsx', 'xls', 'xlsb'], accept_multiple_files=True)
-        file_a_passer = st.file_uploader("Fichier Liste des collaborateurs", type=['xlsx'])
+        file_a_passer = st.file_uploader("Fichier PLANIFICATION VISITE SYSTEMATIQUE", type=['xlsx'])
         file_rta = st.file_uploader("Fichier Enregistrement visite médicale (RTA)", type=['xlsx'])
     else:
         st.info("🔒 Mode consultation : Vous n'avez pas accès aux imports de fichiers.")
@@ -386,7 +383,6 @@ if st.session_state.history_data.get('medical_list') is not None:
             else:
                 med_list[col] = ''
     
-    # Synchronisation automatique au démarrage
     med_list = sync_statut_with_plannings(med_list, st.session_state.history_data.get('plannings', {}))
     st.session_state.history_data['medical_list'] = med_list
     
@@ -698,7 +694,7 @@ def parse_rta_file(file):
 # --- AFFICHAGE DES ONGLETS ---
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📄 1. Planning MC & River", 
-    "👥 2. Liste des collaborateurs", 
+    "👥 2. Liste de collaborateurs", 
     "📅 3. Géneration planning visite",
     "📋 4. Planning visite",
     "✅ 5. Import fichier Suivi", 
@@ -757,7 +753,6 @@ with tab1:
                     planning_df = parse_planning(files_planning, jours)
                     st.session_state.history_data['plannings'][week_num] = planning_df
                     
-                    # --- SYNCHRONISATION DU STATUT ---
                     med_list_to_sync = st.session_state.history_data.get('medical_list')
                     if med_list_to_sync is not None:
                         med_list_to_sync = sync_statut_with_plannings(med_list_to_sync, st.session_state.history_data['plannings'])
@@ -812,7 +807,7 @@ with tab1:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# --- PAGE 2 : LISTE DES COLLABORATEURS ---
+# --- PAGE 2 : LISTE DE COLLABORATEURS ---
 with tab2:
     medical_list = st.session_state.history_data.get('medical_list')
     
@@ -827,7 +822,6 @@ with tab2:
                     with st.spinner("Lecture du fichier..."):
                         medical_df = parse_liste_visite(file_a_passer)
                         if medical_df is not None:
-                            # --- SYNCHRONISATION DU STATUT ---
                             medical_df = sync_statut_with_plannings(medical_df, st.session_state.history_data.get('plannings', {}))
                             st.session_state.history_data['medical_list'] = medical_df
                             save_history()
@@ -960,7 +954,6 @@ with tab3:
                     cols_to_drop = [c for c in ['Nom', 'Projet', 'Statut'] if c in current_planning.columns]
                     planning_to_merge = current_planning.drop(columns=cols_to_drop).copy()
                     
-                    # --- NOUVELLE LOGIQUE DE FUSION (Workday ID OU Payroll ID) ---
                     merged_wid = pd.merge(medical_list, planning_to_merge, on='WORKDAY ID', how='inner', suffixes=('', '_planning'))
                     
                     unmatched_med = medical_list[~medical_list['WORKDAY ID'].isin(merged_wid['WORKDAY ID'])].copy()
@@ -986,7 +979,6 @@ with tab3:
                     working_df['_is_avail'] = working_df.apply(lambda r: is_available_during_slot(r, de_col, a_col, config['debut'], config['fin']), axis=1)
                     working_df = working_df[working_df['_is_avail']].copy()
                     
-                    # --- FILTRE PAR STATUT (CC ou ENC) ---
                     if config.get('statut_filter') and config['statut_filter'] != "Tous":
                         working_df = working_df[working_df['Statut'].astype(str).str.upper() == config['statut_filter'].upper()]
                     
@@ -1005,7 +997,6 @@ with tab3:
                     df_river = working_df[is_river]
                     df_others = working_df[~is_river]
                     
-                    # --- LOGIQUE DE CRÉNEAUX ---
                     slots = []
                     current_slot_dt = datetime.datetime.combine(date_obj, config['debut'])
                     end_slot_dt = datetime.datetime.combine(date_obj, config['fin']) - datetime.timedelta(minutes=30)
@@ -1152,19 +1143,47 @@ with tab3:
                         st.write("🔒 Consultation")
                 
                 if role == "admin":
-                    with st.expander("❌ Annuler ou modifier la planification (individuelle)"):
-                        ids_to_unplan = st.multiselect("Sélectionner les IDs à déplanifier", planned_this_week['WORKDAY ID'].tolist())
-                        if st.button("Valider la déplanification sélectionnée"):
-                            mask = medical_list['WORKDAY ID'].isin(ids_to_unplan)
-                            medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
-                            medical_list.loc[mask, 'Date Visite'] = pd.NaT
-                            medical_list.loc[mask, 'Créneau Visite'] = pd.NaT
-                            medical_list.loc[mask, 'Heure Départ'] = pd.NaT
-                            medical_list.loc[mask, 'Heure Retour'] = pd.NaT
-                            medical_list.loc[mask, 'Commentaire'] = ''
+                    with st.expander("❌ Annuler ou modifier la planification (Tableau interactif)", expanded=True):
+                        st.markdown("💡 **Modifiez directement les cellules du tableau ci-dessous.** Pour déplanifier quelqu'un, changez son Statut en 'Non Planifié'. Cliquez sur le bouton Sauvegarder en bas une fois terminé.")
+                        
+                        edit_df = planned_this_week[['WORKDAY ID', 'Nom', 'Projet', 'Date Visite', 'Créneau Visite', 'Shift Début', 'Shift Fin', 'Priorité Visite', 'Statut Visite']].copy()
+                        edit_df['Date Visite'] = edit_df['Date Visite'].dt.strftime('%d/%m/%Y')
+                        edit_df['Créneau Visite'] = pd.to_datetime(edit_df['Créneau Visite'], errors='coerce').dt.strftime('%H:%M').fillna('')
+                        
+                        edited_df = st.data_editor(
+                            edit_df,
+                            num_rows="dynamic",
+                            use_container_width=True,
+                            key="editor_p3",
+                            column_config={
+                                "Statut Visite": st.column_config.SelectBoxColumn(
+                                    "Statut Visite",
+                                    options=["Planifié", "Non Planifié"],
+                                    required=True,
+                                )
+                            }
+                        )
+                        
+                        if st.button("💾 Sauvegarder les modifications manuelles"):
+                            edited_df['Date Visite'] = pd.to_datetime(edited_df['Date Visite'], format='%d/%m/%Y', errors='coerce')
+                            edited_df['Créneau Visite'] = pd.to_datetime(edited_df['Créneau Visite'], format='%H:%M', errors='coerce')
+                            
+                            for idx, row in edited_df.iterrows():
+                                wid = row['WORKDAY ID']
+                                mask = medical_list['WORKDAY ID'] == wid
+                                
+                                if row['Statut Visite'] == 'Non Planifié':
+                                    medical_list.loc[mask, 'Statut Visite'] = 'Non Planifié'
+                                    medical_list.loc[mask, 'Date Visite'] = pd.NaT
+                                    medical_list.loc[mask, 'Créneau Visite'] = pd.NaT
+                                else:
+                                    medical_list.loc[mask, 'Statut Visite'] = row['Statut Visite']
+                                    medical_list.loc[mask, 'Date Visite'] = row['Date Visite']
+                                    medical_list.loc[mask, 'Créneau Visite'] = row['Créneau Visite']
+                            
                             st.session_state.history_data['medical_list'] = medical_list
                             save_history()
-                            st.success("Planification mise à jour avec succès !")
+                            st.success("Modifications manuelles sauvegardées avec succès !")
                             st.rerun()
             else:
                 st.info("Aucune personne planifiée pour cette semaine pour le moment.")
@@ -1544,7 +1563,8 @@ with tab7:
                 shapes = ['/' if s == 'Visite effectuée' else '' for s in donut_df['Statut']]
                 
                 bgcolors = ['#003D5B' if s == 'Visite effectuée' else ('#003D5B' if s == 'Reste Planifié' else '#747474') for s in donut_df['Statut']]
-                fcolors = ['#25E2CC' if s == 'Visite effectuée' else '#FFFFFF' for s in donut_df['Statut']]
+                fcolors = ['#25E2CC' if s == 'Visite effectuée' else '#FFFFFF' for s in donut_df['Statut']
+                ]
                 
                 fig_site.update_traces(
                     marker=dict(
