@@ -197,6 +197,24 @@ custom_css = """
         box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
     }
     [data-testid="stSidebarCollapseButton"] svg { color: #002032 !important; fill: #002032 !important; }
+        /* Aligner la valeur et le pourcentage (Delta) sur la même ligne */
+    [data-testid="stMetric"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: baseline !important;
+        justify-content: flex-start !important;
+    }
+    [data-testid="stMetricLabel"] {
+        width: 100% !important; /* Le titre prend toute la largeur */
+        margin-bottom: 5px !important;
+    }
+    [data-testid="stMetricValue"], [data-testid="stMetricDelta"] {
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    [data-testid="stMetricValue"] {
+        margin-right: 15px !important; /* Un peu d'espace entre le chiffre et le pourcentage */
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
