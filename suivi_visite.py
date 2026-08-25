@@ -197,22 +197,31 @@ custom_css = """
         box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
     }
     [data-testid="stSidebarCollapseButton"] svg { color: #002032 !important; fill: #002032 !important; }
-        /* --- AJUSTEMENTS FINALS (DARK MODE & METRICS) --- */
-    
-    /* Rendre les titres clairs (turquoise clair) pour qu'ils soient visibles en mode Dark */
-    h2, h3 { color: #F2F2F2 !important; font-weight: 600 !important; }
-    
-    /* Aligner le pourcentage (Delta) à droite de la valeur */
-    [data-testid="stMetric"] {
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        flex-wrap: wrap !important;
+    /* --- AJUSTEMENTS AUTOMATIQUES LIGHT / DARK --- */
+
+    /* 1. TITRES */
+    /* Mode Clair (par défaut) */
+    h1, h2, h3, h4, h5, h6 {
+        color: #003D5B !important;
     }
-    [data-testid="stMetricLabel"] {
-        width: 100% !important;
-        margin-bottom: 5px !important;
+    /* Mode Sombre */
+    [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, 
+    [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6 {
+        color: #F2F2F2 !important;
+    }
+
+    /* 2. TEXTE DES GRAPHIQUES PLOTLY (Axes, Légendes, etc.) */
+    /* Mode Clair */
+    .plot-container text, .plotly text, .main-svg text {
+        fill: #003D5B !important;
+        color: #003D5B !important;
+    }
+    /* Mode Sombre */
+    [data-theme="dark"] .plot-container text, 
+    [data-theme="dark"] .plotly text, 
+    [data-theme="dark"] .main-svg text {
+        fill: #F2F2F2 !important;
+        color: #F2F2F2 !important;
     }
 </style>
 """
@@ -1486,8 +1495,8 @@ with tab7:
                 legend_title_text='Légende',
                 yaxis_range=[0, counts_df['Total'].max() * 1.15],
                 paper_bgcolor='rgba(0,0,0,0)', # Fond transparent
-                plot_bgcolor='rgba(0,0,0,0)',  # Fond transparent
-                font=dict(color='#25E2CC')     # Police en turquoise clair (visible en dark et light)
+                plot_bgcolor='rgba(0,0,0,0)'   # Fond transparent
+                # La ligne font=dict(...) a été retirée car le CSS gère la couleur maintenant !
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
