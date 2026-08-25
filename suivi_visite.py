@@ -100,77 +100,45 @@ with st.sidebar:
 
 st.title("🏥 Suivi des Visites Médicales")
 
-# --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ET LES ANIMATIONS ---
+# --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
 custom_css = """
 <style>
-    /* --- Design Visuel et Animations --- */
-    .stApp {
-        background: linear-gradient(-45deg, #f2f9ff, #e6f7ff, #fdfbff, #eaf6ff);
-        background-size: 400% 400%;
-        animation: gradientBG 15s ease infinite;
-    }
-    @keyframes gradientBG {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-
-    .block-container {
-        background: rgba(255, 255, 255, 0.85) !important;
-        backdrop-filter: blur(8px);
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        padding-top: 5rem !important; padding-bottom: 1rem !important;
-    }
-    
+    .stApp, .block-container { padding-top: 5rem !important; padding-bottom: 1rem !important; }
     html, body, .stApp { font-size: 14px; }
     h1 { color: #25E2CC !important; font-weight: 600; padding-bottom: 10px; border-bottom: 2px solid #003D5B; }
-    
     section[data-testid="stSidebar"] { background-color: #002032; width: 260px !important; }
     section[data-testid="stSidebar"] > div:first-child { width: 260px !important; padding-top: 20px; }
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"], 
     section[data-testid="stSidebar"] label { font-size: 13px !important; color: #747474 !important; }
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #A8F3EB !important; font-size: 15px !important; }
-    
     .stTabs [data-baseweb="tab-list"] { gap: 15px; }
     .stTabs [data-baseweb="tab"] {
         background-color: #FFFFFF; color: #2A2B2C; border: 2px solid #F2F2F2; border-radius: 8px;
         padding: 12px 20px; clip-path: polygon(15px 0%, 100% 0%, 100% 100%, 15px 100%, 0% 50%);
         font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s ease;
     }
-    .stTabs [data-baseweb="tab"]:hover { 
-        border-color: #25E2CC; background-color: #E9FCFA; transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(37, 226, 204, 0.2);
-    }
+    .stTabs [data-baseweb="tab"]:hover { border-color: #25E2CC; background-color: #E9FCFA; }
     .stTabs [aria-selected="true"] { background-color: #003D5B !important; color: #FFFFFF !important; box-shadow: 0 4px 12px rgba(0, 115, 128, 0.3); }
     .stTabs [data-baseweb="tab-highlight"] { background-color: transparent !important; }
     .stTabs [data-baseweb="tab-border-bottom"] { display: none; }
-    
     div.stButton > button {
         background-color: #003D5B; color: #FFFFFF; border: 2px solid #003D5B; padding: 10px 25px;
         border-radius: 25px; font-weight: bold; box-shadow: 0 4px 8px rgba(0, 61, 91, 0.2); transition: all 0.3s ease;
     }
-    div.stButton > button:hover { 
-        background-color: #FBCA18; color: #002032; border-color: #FBCA18; transform: translateY(-2px); 
-        box-shadow: 0 6px 15px rgba(251, 202, 24, 0.3);
-    }
+    div.stButton > button:hover { background-color: #FBCA18; color: #002032; border-color: #FBCA18; transform: translateY(-2px); }
     .stDownloadButton > button { background-color: #25E2CC !important; color: #002032 !important; border: 2px solid #25E2CC !important; border-radius: 8px !important; font-weight: bold; }
     .stDownloadButton > button:hover { background-color: #007380 !important; color: #FFFFFF !important; border-color: #007380 !important; }
-    
     .stAlert [data-testid="stAlertContent"] { border-left: 5px solid #25E2CC; }
     [data-testid="stMetricValue"] { color: #007380; font-weight: bold; }
-    
     .footer-fix {
         position: fixed !important; left: 0 !important; bottom: 0 !important; width: 100% !important;
         background-color: #002032 !important; color: #FFFFFF !important; text-align: left !important;
         font-size: 10px !important; padding: 5px 15px !important; z-index: 999999 !important; border-top: 1px solid #F2F2F2 !important;
     }
-    
     div[data-testid="stMultiSelect"] {
         position: sticky !important; top: 0 !important; z-index: 999 !important;
         background-color: transparent !important; padding: 10px 0 !important;
     }
-    
     [data-testid="stSidebarCollapseButton"] {
         opacity: 1 !important; background-color: #003D5B !important; border: 2px solid #25E2CC !important; border-radius: 8px !important;
     }
@@ -178,31 +146,18 @@ custom_css = """
     [data-testid="stSidebarCollapseButton"]:hover { background-color: #25E2CC !important; }
     [data-testid="stSidebarCollapseButton"]:hover svg { color: #002032 !important; fill: #002032 !important; }
 
-    /* --- MASQUAGE TRÈS CIBLÉ DES LOGOS STREAMLIT CLOUD --- */
-    /* Cible le bouton de déploiement "Hosted with Streamlit" */
-    .stDeployButton, [data-testid="stDeployButton"] { 
-        display: none !important; 
-    }
-    
-    /* Cible le logo Streamlit (le grand SVG) et l'avatar du créateur */
-    div[class*="_link_"], 
-    div[class*="_profilePreview_"], 
-    img[data-testid="appCreatorAvatar"], 
-    [data-testid="appCreatorAvatar"], 
-    [data-testid="stLogo"] {
-        display: none !important;
-    }
-
-    /* Cible les boutons spécifiques dans la barre d'outils du haut sans casser le menu hamburger */
+    .stDeployButton { display: none !important; }
+    [data-testid="appCreatorAvatar"] { display: none !important; }
+    a[href*="streamlit.io/cloud"] { display: none !important; }
+    div[class*="_link_"], div[class*="_profilePreview_"], [data-testid="stLogo"] { display: none !important; }
     [data-testid="stHeaderActionElements"] a[href*="github.com"],
     [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
     [data-testid="stHeaderActionElements"] .stGitHubStar,
     [data-testid="stHeaderActionElements"] .stCommunityChat,
     [data-testid="stHeaderActionElements"] button[aria-label="Share"],
     [data-testid="stHeaderActionElements"] button[aria-label="Edit app"],
-    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
-        display: none !important;
-    }
+    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] { display: none !important; }
+    #MainMenu, footer { visibility: hidden !important; }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -1154,29 +1109,23 @@ with tab3:
                     with st.expander("❌ Annuler ou modifier la planification (Tableau interactif)", expanded=True):
                         st.markdown("💡 **Modifiez directement les cellules du tableau ci-dessous.** Pour planifier ou déplanifier quelqu'un, changez son Statut. Cliquez sur le bouton Sauvegarder en bas une fois terminé.")
                         
-                        # On prend TOUTE la liste des collaborateurs
                         edit_df = medical_list[['WORKDAY ID', 'Nom', 'Projet', 'Statut Visite', 'Date Visite', 'Créneau Visite']].copy()
-                        
-                        # Formatage pour l'affichage
                         edit_df['Date Visite'] = pd.to_datetime(edit_df['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
                         edit_df['Créneau Visite'] = pd.to_datetime(edit_df['Créneau Visite'], errors='coerce').dt.strftime('%H:%M').fillna('')
                         
-                        # Tableau entièrement modifiable (sauf le WORKDAY ID qui est verrouillé pour ne pas casser les données)
                         edited_df = st.data_editor(
                             edit_df,
                             num_rows="dynamic",
                             use_container_width=True,
                             height=600,
                             key="editor_p3_full",
-                            disabled=['WORKDAY ID', 'Nom', 'Projet'] # On verrouille les identités pour éviter les erreurs
+                            disabled=['WORKDAY ID', 'Nom', 'Projet']
                         )
                         
                         if st.button("💾 Sauvegarder les modifications manuelles"):
-                            # Conversion des textes saisis en dates/heures
                             edited_df['Date Visite'] = pd.to_datetime(edited_df['Date Visite'], format='%d/%m/%Y', errors='coerce')
                             edited_df['Créneau Visite'] = pd.to_datetime(edited_df['Créneau Visite'], format='%H:%M', errors='coerce')
                             
-                            # On met à jour la base de données principale
                             for idx, row in edited_df.iterrows():
                                 wid = row['WORKDAY ID']
                                 mask = medical_list['WORKDAY ID'] == wid
@@ -1188,7 +1137,6 @@ with tab3:
                                     medical_list.loc[mask, 'Date Visite'] = pd.NaT
                                     medical_list.loc[mask, 'Créneau Visite'] = pd.NaT
                                 else:
-                                    # Si l'utilisateur a tapé "Planifié" ou autre chose
                                     medical_list.loc[mask, 'Statut Visite'] = statut
                                     medical_list.loc[mask, 'Date Visite'] = row['Date Visite']
                                     medical_list.loc[mask, 'Créneau Visite'] = row['Créneau Visite']
@@ -1575,8 +1523,7 @@ with tab7:
                 shapes = ['/' if s == 'Visite effectuée' else '' for s in donut_df['Statut']]
                 
                 bgcolors = ['#003D5B' if s == 'Visite effectuée' else ('#003D5B' if s == 'Reste Planifié' else '#747474') for s in donut_df['Statut']]
-                fcolors = ['#25E2CC' if s == 'Visite effectuée' else '#FFFFFF' for s in donut_df['Statut']
-                ]
+                fcolors = ['#25E2CC' if s == 'Visite effectuée' else '#FFFFFF' for s in donut_df['Statut']]
                 
                 fig_site.update_traces(
                     marker=dict(
