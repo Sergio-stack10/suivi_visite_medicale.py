@@ -103,25 +103,13 @@ st.title("🏥 Suivi des Visites Médicales")
 # --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ET LES ANIMATIONS ---
 custom_css = """
 <style>
-    /* Fond d'écran animé en dégradé doux */
-    .stApp {
-        background: linear-gradient(-45deg, #f2f9ff, #e6f7ff, #fdfbff, #eaf6ff);
-        background-size: 400% 400%;
-        animation: gradientBG 15s ease infinite;
-    }
-    @keyframes gradientBG {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-
-    /* Transparence et effet de verre (Glassmorphism) pour le contenu principal */
-    .block-container {
-        background: rgba(255, 255, 255, 0.85) !important;
-        backdrop-filter: blur(8px);
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        padding-top: 4rem !important; padding-bottom: 1rem !important;
+    /* Adaptation Mode Nuit (On retire les fonds blancs forcés pour laisser Streamlit gérer) */
+    .stApp { background: transparent !important; }
+    .block-container { 
+        background: transparent !important; 
+        backdrop-filter: none !important; 
+        padding-top: 5rem !important; 
+        padding-bottom: 1rem !important; 
     }
     
     html, body, .stApp { font-size: 14px; }
@@ -182,38 +170,24 @@ custom_css = """
     [data-testid="stSidebarCollapseButton"]:hover { background-color: #25E2CC !important; }
     [data-testid="stSidebarCollapseButton"]:hover svg { color: #002032 !important; fill: #002032 !important; }
 
-    .stDeployButton { display: none !important; }
-    [data-testid="appCreatorAvatar"] { display: none !important; }
-    a[href*="streamlit.io/cloud"] { display: none !important; }
+    /* --- OPTION NUCLEAIRE POUR LES BOUTONS STREAMLIT CLOUD --- */
+    .stDeployButton, [data-testid="stDeployButton"] { display: none !important; visibility: hidden !important; }
     
-    [data-testid="stHeaderActionElements"] a[href*="github.com"],
-    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
-    [data-testid="stHeaderActionElements"] .stGitHubStar,
-    [data-testid="stHeaderActionElements"] .stCommunityChat,
-    [data-testid="stHeaderActionElements"] button[aria-label="Share"],
-    [data-testid="stHeaderActionElements"] button[aria-label="Edit app"],
-    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] {
-        display: none !important;
+    /* Cible le logo et le lien Streamlit en cherchant le début de leur classe */
+    div[class^="_link_"], a[class^="_link_"], div[class*="stLogo"], [data-testid="stLogo"] {
+        display: none !important; visibility: hidden !important;
     }
-    /* --- MASQUAGE DÉFINITIF DES BOUTONS STREAMLAT CLOUD --- */
-    
-    /* 1. Masquer le Logo Streamlit (le grand SVG en bas à droite) */
-    div[class*="_link_"],
-    [data-testid="stLogo"] {
-        display: none !important;
+
+    /* Cible l'avatar du créateur et son conteneur */
+    div[class^="_profilePreview_"], img[data-testid="appCreatorAvatar"], [data-testid="appCreatorAvatar"] {
+        display: none !important; visibility: hidden !important;
     }
-    
-    /* 2. Masquer l'Avatar du créateur (l'image de profil GitHub) */
-    [data-testid="appCreatorAvatar"],
-    img[class*="_profileImage_"],
-    div[class*="_profilePreview_"] {
-        display: none !important;
+
+    /* Masquer le menu hamburger et le footer en bas à droite */
+    #MainMenu, footer, [data-testid="stLogo"] {
+        visibility: hidden !important; display: none !important;
     }
-    
-    /* 3. Masquer les icônes restantes dans la barre d'outils du haut */
-    [data-testid="stToolbarActionButtonIcon"],
-    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
-    [data-testid="stHeaderActionElements"] a[href*="github.com"] {
+    [data-testid="stToolbarActionButtonIcon"], [data-testid="stHeaderActionElements"] a[href*="streamlit.io"], [data-testid="stHeaderActionElements"] a[href*="github.com"] {
         display: none !important;
     }
 </style>
