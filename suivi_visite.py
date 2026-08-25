@@ -103,61 +103,123 @@ st.title("🏥 Suivi des Visites Médicales")
 # --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
 custom_css = """
 <style>
-    .stApp, .block-container { padding-top: 5rem !important; padding-bottom: 1rem !important; }
-    html, body, .stApp { font-size: 14px; }
-    h1 { color: #25E2CC !important; font-weight: 600; padding-bottom: 10px; border-bottom: 2px solid #003D5B; }
-    section[data-testid="stSidebar"] { background-color: #002032; width: 260px !important; }
-    section[data-testid="stSidebar"] > div:first-child { width: 260px !important; padding-top: 20px; }
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"], 
-    section[data-testid="stSidebar"] label { font-size: 13px !important; color: #747474 !important; }
-    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: #A8F3EB !important; font-size: 15px !important; }
-    .stTabs [data-baseweb="tab-list"] { gap: 15px; }
+    /* 1. IMPORTATION D'UNE POLICE MODERNE (Google Fonts) */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    
+    html, body, .stApp {
+        font-family: 'Outfit', sans-serif !important;
+    }
+    
+    /* 2. STRUCTURE GÉNÉRALE (Sans forcer la couleur pour respecter le mode nuit) */
+    .stApp, .block-container { 
+        padding-top: 4rem !important; 
+        padding-bottom: 2rem !important; 
+        max-width: 1200px; /* Centre l'application pour un rendu plus propre sur grands écrans */
+        margin: auto;
+    }
+    
+    h1 { 
+        color: #25E2CC !important; 
+        font-weight: 700 !important; 
+        padding-bottom: 15px !important; 
+        border-bottom: 3px solid #003D5B !important; 
+        margin-bottom: 30px !important;
+    }
+    h2, h3 { color: #003D5B !important; font-weight: 600 !important; }
+    
+    /* 3. EFFET "CARTE" POUR LES BLOCS DE CONTENU (Glassmorphism léger) */
+    /* Cela s'applique aux conteneurs et aux tableaux */
+    [data-testid="stVerticalBlock"] > div:has(> [data-testid="stDataFrame"]) {
+        background-color: rgba(128, 128, 128, 0.05); /* Fond gris très transparent */
+        border: 1px solid rgba(128, 128, 128, 0.1); /* Bordure discrète */
+        border-radius: 12px; /* Coins arrondis */
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); /* Ombre douce */
+        margin-bottom: 20px;
+    }
+    
+    /* 4. BARRE LATÉRALE (Sidebar) Plus Premium */
+    section[data-testid="stSidebar"] { 
+        background-color: #001a26 !important; /* Bleu marine très foncé */
+        border-right: 2px solid #25E2CC !important;
+    }
+    section[data-testid="stSidebar"] > div:first-child { padding-top: 30px !important; }
+    section[data-testid="stSidebar"] label { color: #A8F3EB !important; font-weight: 500 !important; }
+    
+    /* 5. ONGLETS (Tabs) - Forme de pilule moderne */
+    .stTabs [data-baseweb="tab-list"] { gap: 10px !important; }
     .stTabs [data-baseweb="tab"] {
-        background-color: #FFFFFF; color: #2A2B2C; border: 2px solid #F2F2F2; border-radius: 8px;
-        padding: 12px 20px; clip-path: polygon(15px 0%, 100% 0%, 100% 100%, 15px 100%, 0% 50%);
-        font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s ease;
+        background-color: transparent;
+        color: gray !important;
+        border: 1px solid transparent !important;
+        border-radius: 30px !important; /* Forme de pilule */
+        padding: 10px 25px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: none !important;
+        clip-path: none !important; /* On retire l'ancienne forme coupée */
     }
-    .stTabs [data-baseweb="tab"]:hover { border-color: #25E2CC; background-color: #E9FCFA; }
-    .stTabs [aria-selected="true"] { background-color: #003D5B !important; color: #FFFFFF !important; box-shadow: 0 4px 12px rgba(0, 115, 128, 0.3); }
+    .stTabs [data-baseweb="tab"]:hover { 
+        background-color: rgba(37, 226, 204, 0.1) !important; 
+        color: #25E2CC !important;
+    }
+    .stTabs [aria-selected="true"] { 
+        background-color: #003D5B !important; 
+        color: #FFFFFF !important; 
+        box-shadow: 0 4px 12px rgba(0, 61, 91, 0.3) !important;
+    }
     .stTabs [data-baseweb="tab-highlight"] { background-color: transparent !important; }
-    .stTabs [data-baseweb="tab-border-bottom"] { display: none; }
+    .stTabs [data-baseweb="tab-border-bottom"] { display: none !important; }
+    
+    /* 6. BOUTONS - Effet de profondeur au survol */
     div.stButton > button {
-        background-color: #003D5B; color: #FFFFFF; border: 2px solid #003D5B; padding: 10px 25px;
-        border-radius: 25px; font-weight: bold; box-shadow: 0 4px 8px rgba(0, 61, 91, 0.2); transition: all 0.3s ease;
+        background-color: #003D5B; color: #FFFFFF; border: none; padding: 12px 30px;
+        border-radius: 30px; font-weight: 600; transition: all 0.3s ease; width: 100%;
     }
-    div.stButton > button:hover { background-color: #FBCA18; color: #002032; border-color: #FBCA18; transform: translateY(-2px); }
-    .stDownloadButton > button { background-color: #25E2CC !important; color: #002032 !important; border: 2px solid #25E2CC !important; border-radius: 8px !important; font-weight: bold; }
-    .stDownloadButton > button:hover { background-color: #007380 !important; color: #FFFFFF !important; border-color: #007380 !important; }
-    .stAlert [data-testid="stAlertContent"] { border-left: 5px solid #25E2CC; }
-    [data-testid="stMetricValue"] { color: #007380; font-weight: bold; }
+    div.stButton > button:hover { 
+        background-color: #25E2CC !important; color: #002032 !important; 
+        transform: translateY(-3px); /* Le bouton se soulève */
+        box-shadow: 0 8px 15px rgba(37, 226, 204, 0.3) !important; /* Ombre turquoise */
+    }
+    .stDownloadButton > button { 
+        background-color: #25E2CC !important; color: #002032 !important; border: none !important; 
+        border-radius: 30px !important; font-weight: 600 !important; width: 100%;
+    }
+    .stDownloadButton > button:hover { 
+        background-color: #007380 !important; color: #FFFFFF !important; transform: translateY(-3px);
+    }
+    
+    /* 7. MÉTRIQUES (st.metric) - Style "Dashboard" */
+    [data-testid="stMetric"] {
+        background-color: rgba(128, 128, 128, 0.05);
+        border: 1px solid rgba(128, 128, 128, 0.1);
+        border-radius: 12px;
+        padding: 15px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    [data-testid="stMetricLabel"] { color: gray !important; font-size: 12px !important; text-transform: uppercase; letter-spacing: 1px; }
+    [data-testid="stMetricValue"] { color: #003D5B !important; font-weight: 700 !important; font-size: 24px !important; }
+    
+    /* 8. FOOTER */
     .footer-fix {
         position: fixed !important; left: 0 !important; bottom: 0 !important; width: 100% !important;
-        background-color: #002032 !important; color: #FFFFFF !important; text-align: left !important;
-        font-size: 10px !important; padding: 5px 15px !important; z-index: 999999 !important; border-top: 1px solid #F2F2F2 !important;
+        background-color: #001a26 !important; color: #A8F3EB !important; text-align: center !important;
+        font-size: 12px !important; padding: 10px !important; z-index: 999999 !important; 
+        border-top: 2px solid #25E2CC !important;
     }
-    div[data-testid="stMultiSelect"] {
-        position: sticky !important; top: 0 !important; z-index: 999 !important;
-        background-color: transparent !important; padding: 10px 0 !important;
-    }
-    [data-testid="stSidebarCollapseButton"] {
-        opacity: 1 !important; background-color: #003D5B !important; border: 2px solid #25E2CC !important; border-radius: 8px !important;
-    }
-    [data-testid="stSidebarCollapseButton"] svg { color: #25E2CC !important; fill: #25E2CC !important; }
-    [data-testid="stSidebarCollapseButton"]:hover { background-color: #25E2CC !important; }
-    [data-testid="stSidebarCollapseButton"]:hover svg { color: #002032 !important; fill: #002032 !important; }
-
-    .stDeployButton { display: none !important; }
-    [data-testid="appCreatorAvatar"] { display: none !important; }
-    a[href*="streamlit.io/cloud"] { display: none !important; }
-    div[class*="_link_"], div[class*="_profilePreview_"], [data-testid="stLogo"] { display: none !important; }
-    [data-testid="stHeaderActionElements"] a[href*="github.com"],
-    [data-testid="stHeaderActionElements"] a[href*="streamlit.io"],
-    [data-testid="stHeaderActionElements"] .stGitHubStar,
-    [data-testid="stHeaderActionElements"] .stCommunityChat,
-    [data-testid="stHeaderActionElements"] button[aria-label="Share"],
-    [data-testid="stHeaderActionElements"] button[aria-label="Edit app"],
-    [data-testid="stHeaderActionElements"] button[aria-label="Record a screencast"] { display: none !important; }
+    
+    /* 9. MASQUER LES LOGOS STREAMLIT (Gardé intact pour ton interface propre) */
+    .stDeployButton, [data-testid="stDeployButton"] { display: none !important; }
+    div[class*="_link_"], div[class*="_profilePreview_"], img[data-testid="appCreatorAvatar"], [data-testid="stLogo"] { display: none !important; }
+    [data-testid="stHeaderActionElements"] a[href*="github.com"], [data-testid="stHeaderActionElements"] a[href*="streamlit.io"] { display: none !important; }
     #MainMenu, footer { visibility: hidden !important; }
+
+    /* Bouton sidebar flottant */
+    [data-testid="stSidebarCollapseButton"] {
+        opacity: 1 !important; background-color: #25E2CC !important; border: none !important; border-radius: 20px !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+    }
+    [data-testid="stSidebarCollapseButton"] svg { color: #002032 !important; fill: #002032 !important; }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
