@@ -200,11 +200,6 @@ custom_css = """
     [data-testid="appCreatorAvatar"] {
         display: none !important;
     }
-
-    /* Masquer les icônes d'action de la barre d'outils du haut */
-    [data-testid="stToolbarActionButtonIcon"] {
-        display: none !important;
-    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
