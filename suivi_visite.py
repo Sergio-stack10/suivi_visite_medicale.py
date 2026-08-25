@@ -103,7 +103,7 @@ st.title("🏥 Suivi des Visites Médicales")
 # --- INJECTION CSS POUR LA CHARTRE GRAPHIQUE ---
 custom_css = """
 <style>
-    /* Polices natives modernes (Pour éviter les blocages de sécurité de Streamlit) */
+    /* Polices natives modernes */
     html, body, .stApp {
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     }
@@ -197,32 +197,6 @@ custom_css = """
         box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
     }
     [data-testid="stSidebarCollapseButton"] svg { color: #002032 !important; fill: #002032 !important; }
-    /* --- AJUSTEMENTS AUTOMATIQUES LIGHT / DARK --- */
-
-    /* 1. TITRES */
-    /* Mode Clair (par défaut) */
-    h1, h2, h3, h4, h5, h6 {
-        color: #003D5B !important;
-    }
-    /* Mode Sombre */
-    [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, 
-    [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6 {
-        color: #F2F2F2 !important;
-    }
-
-    /* 2. TEXTE DES GRAPHIQUES PLOTLY (Axes, Légendes, etc.) */
-    /* Mode Clair */
-    .plot-container text, .plotly text, .main-svg text {
-        fill: #003D5B !important;
-        color: #003D5B !important;
-    }
-    /* Mode Sombre */
-    [data-theme="dark"] .plot-container text, 
-    [data-theme="dark"] .plotly text, 
-    [data-theme="dark"] .main-svg text {
-        fill: #F2F2F2 !important;
-        color: #F2F2F2 !important;
-    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -1494,9 +1468,8 @@ with tab7:
                 barmode='overlay', 
                 legend_title_text='Légende',
                 yaxis_range=[0, counts_df['Total'].max() * 1.15],
-                paper_bgcolor='rgba(0,0,0,0)', # Fond transparent
-                plot_bgcolor='rgba(0,0,0,0)'   # Fond transparent
-                # La ligne font=dict(...) a été retirée car le CSS gère la couleur maintenant !
+                paper_bgcolor='rgba(0,0,0,0)', 
+                plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
@@ -1544,8 +1517,7 @@ with tab7:
             fig2.update_layout(
                 yaxis_range=[0, max_val * 1.15],
                 paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#A8F3EB')
+                plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig2, use_container_width=True)
         else:
@@ -1636,8 +1608,7 @@ with tab7:
                     showlegend=False, 
                     margin=dict(t=40, b=20, l=20, r=20),
                     paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#A8F3EB')
+                    plot_bgcolor='rgba(0,0,0,0)'
                 )
                 
                 st.plotly_chart(fig_site, use_container_width=True)
