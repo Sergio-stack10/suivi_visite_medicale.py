@@ -710,9 +710,9 @@ def parse_rta_file(file):
         if 'Date Visite' in df.columns:
             df['Date Visite'] = pd.to_datetime(df['Date Visite'], errors='coerce', dayfirst=True)
         if 'Heure Départ' in df.columns:
-            df['Heure Départ'] = pd.to_datetime(df['Heure Départ'], errors='coerce')
+            df['Heure Départ'] = pd.to_datetime(df['Heure Départ'].astype(str), errors='coerce')
         if 'Heure Retour' in df.columns:
-            df['Heure Retour'] = pd.to_datetime(df['Heure Retour'], errors='coerce')
+            df['Heure Retour'] = pd.to_datetime(df['Heure Retour'].astype(str), errors='coerce')
         if "DATE D'EMBAUCHE" in df.columns:
             df["DATE D'EMBAUCHE"] = pd.to_datetime(df["DATE D'EMBAUCHE"], errors='coerce', dayfirst=True)
                 
@@ -1338,9 +1338,9 @@ with tab5:
         if 'Date Visite' in display_rta.columns:
             display_rta['Date Visite'] = pd.to_datetime(display_rta['Date Visite'], errors='coerce').dt.strftime('%d/%m/%Y').fillna('')
         if 'Heure Départ' in display_rta.columns:
-            display_rta['Heure Départ'] = pd.to_datetime(display_rta['Heure Départ'], errors='coerce').dt.strftime('%H:%M').fillna('')
+            display_rta['Heure Départ'] = pd.to_datetime(display_rta['Heure Départ'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('')
         if 'Heure Retour' in display_rta.columns:
-            display_rta['Heure Retour'] = pd.to_datetime(display_rta['Heure Retour'], errors='coerce').dt.strftime('%H:%M').fillna('')
+            display_rta['Heure Retour'] = pd.to_datetime(display_rta['Heure Retour'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('')
             
         desired_order = ['WORKDAY ID', 'Payroll ID', 'Nom complet', 'Projet', 'Statut Visite', 'Date Visite', 'Heure Départ', 'Heure Retour', 'Durée', 'Commentaire']
         final_cols = [c for c in desired_order if c in display_rta.columns]
@@ -1365,7 +1365,31 @@ with tab6:
     rta_data = st.session_state.history_data.get('rta_data')
     
     if rta_data is not None:
-        abs_df = rta_data.copy()
+        med_df = rta_data.copy()
+        
+        # --- Récupération du Payroll ID manquant depuis la liste des collaborateurs ---
+        if 'Payroll ID' not in med_df.columns or med_df['Payroll ID'].isnull().all():
+            med_list = st.session_state.history_data.get('medical_list')
+            if med_list is not None and 'Payroll ID' in med_list.columns:
+                payroll_df = med_list[['WORKDAY ID', 'Payroll ID']].drop_duplicates(subset=['WORKDAY ID']).copy()
+                payroll_df['WORKDAY ID'] = payroll_df['WORKDAY ID'].astype(str).str.strip()
+                med_df['WORKDAY ID'] = med_df['WORKDAY ID'].astype(str).str.strip()
+                if 'Payroll ID' in med_df.columns:
+                    med_df = med_df.drop(columns=['Payroll ID'])
+                med_df = med_df.merge(payroll_df, on='WORKDAY ID', how='left')
+            else:
+                med_df['Payroll ID'] = ''
+        else:
+            med_df['Payroll ID'] = med_df['Payroll ID'].fillna('')
+            
+        # --- Calcul des Durées avec conversion forcée des heures (format AM/PM) ---
+        if 'Heure Départ' in med_df.columns and 'Heure Retour' in med_df.columns:
+            med_df['Heure Départ'] = pd.to_datetime(med_df['Heure Départ'].astype(str), errors='coerce')
+            med_df['Heure Retour'] = pd.to_datetime(med_df['Heure Retour'].astype(str), errors='coerce')
+            med_df['Durée (min)'] = (med_df['Heure Retour'] - med_df['Heure Départ']).dt.total_seconds() / 60
+            med_df.loc[med_df['Durée (min)'] < 0, 'Durée (min)'] = np.nan 
+        else:
+            med_df['Durée (min)'] = np.nan
         
         if 'Statut Visite' not in abs_df.columns: abs_df['Statut Visite'] = ''
         if 'Commentaire' not in abs_df.columns: abs_df['Commentaire'] = ''
