@@ -1364,33 +1364,11 @@ with tab6:
             
     rta_data = st.session_state.history_data.get('rta_data')
     
-    if rta_data is not None:
-        med_df = rta_data.copy()
+    # Sécurité : on vérifie que rta_data existe et n'est pas vide
+    if rta_data is not None and not rta_data.empty:
+        abs_df = rta_data.copy()
         
-        # --- Récupération du Payroll ID manquant depuis la liste des collaborateurs ---
-        if 'Payroll ID' not in med_df.columns or med_df['Payroll ID'].isnull().all():
-            med_list = st.session_state.history_data.get('medical_list')
-            if med_list is not None and 'Payroll ID' in med_list.columns:
-                payroll_df = med_list[['WORKDAY ID', 'Payroll ID']].drop_duplicates(subset=['WORKDAY ID']).copy()
-                payroll_df['WORKDAY ID'] = payroll_df['WORKDAY ID'].astype(str).str.strip()
-                med_df['WORKDAY ID'] = med_df['WORKDAY ID'].astype(str).str.strip()
-                if 'Payroll ID' in med_df.columns:
-                    med_df = med_df.drop(columns=['Payroll ID'])
-                med_df = med_df.merge(payroll_df, on='WORKDAY ID', how='left')
-            else:
-                med_df['Payroll ID'] = ''
-        else:
-            med_df['Payroll ID'] = med_df['Payroll ID'].fillna('')
-            
-        # --- Calcul des Durées avec conversion forcée des heures (format AM/PM) ---
-        if 'Heure Départ' in med_df.columns and 'Heure Retour' in med_df.columns:
-            med_df['Heure Départ'] = pd.to_datetime(med_df['Heure Départ'].astype(str), errors='coerce')
-            med_df['Heure Retour'] = pd.to_datetime(med_df['Heure Retour'].astype(str), errors='coerce')
-            med_df['Durée (min)'] = (med_df['Heure Retour'] - med_df['Heure Départ']).dt.total_seconds() / 60
-            med_df.loc[med_df['Durée (min)'] < 0, 'Durée (min)'] = np.nan 
-        else:
-            med_df['Durée (min)'] = np.nan
-        
+        # Sécurité : on s'assure que les colonnes existent avant de les lire
         if 'Statut Visite' not in abs_df.columns: abs_df['Statut Visite'] = ''
         if 'Commentaire' not in abs_df.columns: abs_df['Commentaire'] = ''
             
@@ -1431,12 +1409,28 @@ with tab7:
             
     rta_data = st.session_state.history_data.get('rta_data')
     
-    if rta_data is not None:
+    if rta_data is not None and not rta_data.empty:
         med_df = rta_data.copy()
         
+        # --- Récupération du Payroll ID manquant depuis la liste des collaborateurs ---
+        if 'Payroll ID' not in med_df.columns or med_df['Payroll ID'].isnull().all():
+            med_list = st.session_state.history_data.get('medical_list')
+            if med_list is not None and 'Payroll ID' in med_list.columns:
+                payroll_df = med_list[['WORKDAY ID', 'Payroll ID']].drop_duplicates(subset=['WORKDAY ID']).copy()
+                payroll_df['WORKDAY ID'] = payroll_df['WORKDAY ID'].astype(str).str.strip()
+                med_df['WORKDAY ID'] = med_df['WORKDAY ID'].astype(str).str.strip()
+                if 'Payroll ID' in med_df.columns:
+                    med_df = med_df.drop(columns=['Payroll ID'])
+                med_df = med_df.merge(payroll_df, on='WORKDAY ID', how='left')
+            else:
+                med_df['Payroll ID'] = ''
+        else:
+            med_df['Payroll ID'] = med_df['Payroll ID'].fillna('')
+            
+        # --- Calcul des Durées avec conversion forcée des heures (format AM/PM) ---
         if 'Heure Départ' in med_df.columns and 'Heure Retour' in med_df.columns:
-            med_df['Heure Départ'] = pd.to_datetime(med_df['Heure Départ'], errors='coerce')
-            med_df['Heure Retour'] = pd.to_datetime(med_df['Heure Retour'], errors='coerce')
+            med_df['Heure Départ'] = pd.to_datetime(med_df['Heure Départ'].astype(str), errors='coerce')
+            med_df['Heure Retour'] = pd.to_datetime(med_df['Heure Retour'].astype(str), errors='coerce')
             med_df['Durée (min)'] = (med_df['Heure Retour'] - med_df['Heure Départ']).dt.total_seconds() / 60
             med_df.loc[med_df['Durée (min)'] < 0, 'Durée (min)'] = np.nan 
         else:
