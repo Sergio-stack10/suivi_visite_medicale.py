@@ -167,46 +167,44 @@ custom_css = """
         background-color: #007380 !important; color: #FFFFFF !important; transform: translateY(-3px);
     }
     
-    /* Métriques (Style Dashboard avec Grid pour aligner le % à droite) */
+    /* Métriques (Style Dashboard) */
     [data-testid="stMetric"] {
         background-color: rgba(128, 128, 128, 0.05);
         border: 1px solid rgba(128, 128, 128, 0.1);
         border-radius: 12px;
         padding: 15px !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        
-        /* Création d'une grille de 2 colonnes */
-        display: grid !important;
-        grid-template-columns: auto auto !important;
-        grid-template-areas: 
-            "label label"
-            "value delta" !important;
-        align-items: center !important;
-        gap: 5px 10px !important;
     }
-    
-    [data-testid="stMetricLabel"] {
-        grid-area: label !important;
+    [data-testid="stMetricLabel"] { 
         color: gray !important; 
         font-size: 12px !important; 
         text-transform: uppercase; 
-        letter-spacing: 1px;
+        letter-spacing: 1px; 
+        display: block !important;
+        margin-bottom: 5px !important;
     }
-    
-    [data-testid="stMetricValue"] {
-        grid-area: value !important;
+    [data-testid="stMetricValue"] { 
         color: #003D5B !important; 
         font-weight: 700 !important; 
         font-size: 24px !important;
-    }
-    
-    /* Cible la 3ème div (le conteneur du Delta) et l'envoie à droite */
-    [data-testid="stMetric"] > div:nth-child(3) {
-        grid-area: delta !important;
-        justify-self: end !important; /* Aligne complètement à droite */
         display: inline-flex !important;
         align-items: center !important;
     }
+
+    /* --- ALIGNEMENT DU POURCENTAGE À DROITE --- */
+    /* On cible la div anonyme qui enveloppe le Delta */
+    [data-testid="stMetric"] > div:nth-child(3) {
+        display: inline-flex !important;
+        align-items: center !important;
+        margin-left: auto !important; /* Pousse le bloc complètement à droite */
+        float: right !important; /* Double sécurité pour forcer à droite */
+    }
+    [data-testid="stMetricDelta"] {
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    [data-testid="stMetricLabel"] { color: gray !important; font-size: 12px !important; text-transform: uppercase; letter-spacing: 1px; }
+    [data-testid="stMetricValue"] { color: #003D5B !important; font-weight: 700 !important; font-size: 24px !important; }
 
     /* Footer */
     .footer-fix {
